@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#04060e">
+<title>ما نوع النسيج؟ | رضا محمد</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800;900&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#04060e;--surf:#080c18;--card:#0c1220;--card2:#101828;
+  --border:#1a2840;--border2:#243860;
+  --pink:#f050a0;--teal:#20d0a0;--gold:#f0b020;--blue:#4090f8;--purple:#a870f8;
+  --text:#eef4ff;--muted:#6080a8;
+  --c1:var(--pink);--c2:var(--teal);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Cairo',sans-serif;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 60% 40% at 15% 15%,rgba(240,80,160,.06) 0%,transparent 55%),radial-gradient(ellipse 50% 45% at 85% 85%,rgba(32,208,160,.05) 0%,transparent 55%);pointer-events:none;z-index:0}
+
+/* ── HEADER ── */
+.hdr{position:sticky;top:0;background:rgba(4,6,14,.96);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-bottom:1px solid var(--border);padding:12px 16px;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.hdr-logo{font-family:'Tajawal',sans-serif;font-weight:900;font-size:.95rem;background:linear-gradient(135deg,var(--pink),var(--teal));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.2}
+.hdr-sub{font-size:.65rem;color:var(--muted);font-weight:400;-webkit-text-fill-color:var(--muted)}
+.hdr-score{background:var(--card);border:1px solid var(--border2);border-radius:10px;padding:5px 12px;font-size:.78rem;font-weight:700;color:var(--teal);white-space:nowrap}
+
+/* ── PROGRESS BAR ── */
+.prog-wrap{height:4px;background:var(--border);position:relative}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--pink),var(--teal));transition:width .4s cubic-bezier(.4,0,.2,1);box-shadow:0 0 10px var(--pink)}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--surf);overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{padding:10px 16px;font-family:'Tajawal',sans-serif;font-weight:700;font-size:.8rem;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .25s;touch-action:manipulation}
+.tab.active{color:var(--pink);border-bottom-color:var(--pink)}
+.tab:hover{color:var(--text)}
+
+/* ── MAIN ── */
+main{position:relative;z-index:1;max-width:840px;margin:0 auto;padding:16px 14px 100px}
+
+/* ── SECTION HEADER ── */
+.sec-hd{font-family:'Tajawal',sans-serif;font-weight:800;font-size:1rem;color:var(--text);padding:12px 0 6px;display:flex;align-items:center;gap:8px}
+.sec-pill{display:inline-flex;padding:3px 10px;border-radius:20px;font-size:.66rem;font-weight:700}
+
+/* ── CARD ROW (study mode) ── */
+.study-section{display:none}
+.study-section.active{display:block}
+
+.tissue-group{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:12px;overflow:hidden}
+.tg-header{background:linear-gradient(135deg,rgba(240,80,160,.12),rgba(32,208,160,.08));padding:12px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;touch-action:manipulation;gap:10px}
+.tg-name{font-family:'Tajawal',sans-serif;font-weight:800;font-size:.92rem;color:var(--pink)}
+.tg-count{background:rgba(240,80,160,.15);border:1px solid rgba(240,80,160,.3);color:var(--pink);border-radius:20px;padding:2px 10px;font-size:.68rem;font-weight:700;white-space:nowrap}
+.tg-arrow{color:var(--muted);transition:transform .3s;font-size:.9rem;flex-shrink:0}
+.tg-header.open .tg-arrow{transform:rotate(180deg)}
+.tg-body{display:none;border-top:1px solid var(--border)}
+.tg-body.open{display:block}
+.tg-row{display:flex;align-items:center;padding:11px 16px;border-bottom:1px solid rgba(26,40,64,.6);gap:10px;font-size:.84rem;line-height:1.6}
+.tg-row:last-child{border-bottom:none}
+.tg-num{width:22px;height:22px;min-width:22px;border-radius:50%;background:rgba(32,208,160,.15);border:1px solid rgba(32,208,160,.3);color:var(--teal);font-size:.68rem;font-weight:700;display:flex;align-items:center;justify-content:center}
+.tg-struct{flex:1;color:var(--text)}
+.tg-years{font-size:.62rem;color:var(--muted);line-height:1.5;margin-top:2px}
+.star{color:var(--gold);font-size:.65rem}
+
+/* ── QUIZ MODE ── */
+.quiz-section{display:none}
+.quiz-section.active{display:block}
+
+.q-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:14px;transition:all .3s}
+.q-card.correct{border-color:var(--teal);background:rgba(32,208,160,.06)}
+.q-card.wrong{border-color:var(--pink);background:rgba(240,80,160,.06)}
+.q-num{display:inline-flex;width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--pink),var(--purple));color:#fff;font-size:.74rem;font-weight:700;align-items:center;justify-content:center;margin-left:8px;flex-shrink:0}
+.q-text{font-family:'Tajawal',sans-serif;font-weight:700;font-size:.94rem;line-height:1.6;margin-bottom:14px;display:flex;align-items:flex-start}
+.q-years-tag{font-size:.62rem;color:var(--gold);background:rgba(240,176,32,.1);border:1px solid rgba(240,176,32,.25);border-radius:8px;padding:2px 7px;margin-top:4px;display:inline-block;font-weight:600}
+.opts{display:flex;flex-direction:column;gap:7px}
+.opt{background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:12px 15px;cursor:pointer;font-size:.86rem;line-height:1.5;transition:all .22s;touch-action:manipulation;min-height:46px;display:flex;align-items:center}
+.opt:active{transform:scale(.98)}
+.opt.ok{background:rgba(32,208,160,.1);border-color:var(--teal);color:var(--teal);font-weight:700}
+.opt.no{background:rgba(240,80,160,.1);border-color:var(--pink);color:var(--pink)}
+.opt.off{pointer-events:none}
+.opt.reveal{background:rgba(32,208,160,.07);border-color:rgba(32,208,160,.4);color:var(--teal)}
+.q-fb{display:none;margin-top:10px;padding:10px 13px;border-radius:9px;font-size:.82rem;line-height:1.7}
+.q-fb.show{display:block}
+.q-fb.ok{background:rgba(32,208,160,.09);border:1px solid rgba(32,208,160,.25);color:var(--teal)}
+.q-fb.no{background:rgba(240,80,160,.09);border:1px solid rgba(240,80,160,.25);color:#f090b8}
+
+/* ── FLASH CARDS ── */
+.flash-section{display:none}
+.flash-section.active{display:block}
+.flash-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px}
+.flash-ctr{font-size:.84rem;color:var(--muted);font-weight:700;text-align:center}
+.flash-ctr span{color:var(--pink)}
+.flash-card{background:var(--card);border:1px solid var(--border);border-radius:20px;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 22px;text-align:center;cursor:pointer;touch-action:manipulation;position:relative;overflow:hidden;transition:all .3s}
+.flash-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(240,80,160,.06),rgba(32,208,160,.04));opacity:0;transition:opacity .3s}
+.flash-card:active::before{opacity:1}
+.flash-q{font-family:'Tajawal',sans-serif;font-weight:800;font-size:1.15rem;color:var(--text);line-height:1.5;margin-bottom:10px}
+.flash-hint{font-size:.75rem;color:var(--muted)}
+.flash-a{display:none;font-family:'Tajawal',sans-serif;font-weight:800;font-size:1.2rem;color:var(--teal);line-height:1.5;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+.flash-a.show{display:block}
+.flash-years{font-size:.65rem;color:var(--gold);margin-top:8px}
+.flash-btns{display:flex;gap:8px;margin-top:14px;justify-content:center;flex-wrap:wrap}
+
+/* ── SCORE BOARD ── */
+.score-board{background:linear-gradient(135deg,var(--card),var(--card2));border:1px solid var(--border2);border-radius:16px;padding:22px;text-align:center;margin-bottom:16px}
+.sc-big{font-family:'Tajawal',sans-serif;font-size:3.5rem;font-weight:900;background:linear-gradient(135deg,var(--pink),var(--teal));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1}
+.sc-lbl{color:var(--muted);font-size:.84rem;margin-top:4px}
+.sc-grade{font-family:'Tajawal',sans-serif;font-size:1.1rem;font-weight:800;margin-top:8px}
+
+/* ── BUTTONS ── */
+.btn{padding:11px 22px;border:none;border-radius:11px;font-family:'Cairo',sans-serif;font-size:.88rem;font-weight:700;cursor:pointer;transition:all .25s;touch-action:manipulation;min-height:46px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.bp{background:linear-gradient(135deg,var(--pink),var(--purple));color:#fff;box-shadow:0 4px 14px rgba(240,80,160,.25)}
+.bt{background:linear-gradient(135deg,var(--teal),#108878);color:#000;font-weight:800}
+.bs{background:var(--card);color:var(--text);border:1px solid var(--border)}
+.bsm{padding:8px 16px;font-size:.8rem;border-radius:9px;min-height:40px}
+.br{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px}
+
+/* ── LINKS (Telegram) ── */
+.links-wrap{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.tg-link{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#0a1e38,#0f2e4e);border:1px solid rgba(96,168,248,.35);border-radius:13px;padding:13px 16px;text-decoration:none;transition:all .25s;touch-action:manipulation}
+.tg-link:active{transform:scale(.98)}
+.tg-icon{width:40px;height:40px;min-width:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.3rem}
+.tg-icon.ch{background:linear-gradient(135deg,#0088cc,#00c4f0);box-shadow:0 0 10px rgba(0,180,216,.4)}
+.tg-icon.gp{background:linear-gradient(135deg,#f050a0,#a040e0);box-shadow:0 0 10px rgba(240,80,160,.4)}
+.tg-icon.bt{background:linear-gradient(135deg,#20a080,#10c890);box-shadow:0 0 10px rgba(32,200,144,.4)}
+.tg-name{font-family:'Tajawal',sans-serif;font-weight:800;font-size:.9rem;color:#a8d8ff;margin-bottom:2px}
+.tg-url{font-size:.7rem;color:#4a8aaa;font-weight:700}
+.tg-desc{font-size:.72rem;color:#4a7090}
+
+/* ── STATS ── */
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.stat-c{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center}
+.stat-num{font-family:'Tajawal',sans-serif;font-weight:900;font-size:1.5rem;margin-bottom:3px}
+.stat-lbl{font-size:.72rem;color:var(--muted)}
+
+/* ── WELCOME ── */
+.welcome{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:16px;text-align:center}
+.welcome h1{font-family:'Tajawal',sans-serif;font-weight:900;font-size:1.3rem;margin-bottom:8px}
+.welcome p{font-size:.84rem;color:var(--muted);line-height:1.7}
+
+/* ── MODE CARDS ── */
+.mode-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px}
+@media(max-width:480px){.mode-grid{grid-template-columns:1fr}}
+.mode-card{background:var(--card);border:2px solid var(--border);border-radius:14px;padding:18px 14px;text-align:center;cursor:pointer;transition:all .25s;touch-action:manipulation}
+.mode-card:active{transform:scale(.97)}
+.mode-card.sel{border-color:var(--pink);background:rgba(240,80,160,.07)}
+.mode-icon{font-size:2rem;margin-bottom:8px;display:block}
+.mode-name{font-family:'Tajawal',sans-serif;font-weight:700;font-size:.88rem;color:var(--text);margin-bottom:3px}
+.mode-desc{font-size:.72rem;color:var(--muted)}
+
+.wm{position:fixed;bottom:65px;left:8px;font-size:.55rem;color:rgba(255,255,255,.05);pointer-events:none;z-index:0;writing-mode:vertical-rl;letter-spacing:2px}
+
+@media(max-width:600px){
+  .stats-row{grid-template-columns:1fr 1fr}
+  .mode-grid{grid-template-columns:1fr 1fr}
+  main{padding:12px 12px 90px}
+}
+</style>
+</head>
+<body>
+<div class="wm">© رضا محمد / Ridha Mohammed 2026</div>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div>
+    <div class="hdr-logo">ما نوع النسيج؟</div>
+    <div class="hdr-sub" style="-webkit-text-fill-color:var(--muted)">رضا محمد</div>
+  </div>
+  <div class="hdr-score" id="hdr-score">0 / 42</div>
+</div>
+<div class="prog-wrap"><div class="prog-fill" id="prog" style="width:0%"></div></div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="showTab('home')">🏠 الرئيسية</div>
+  <div class="tab" onclick="showTab('study')">📖 المذاكرة</div>
+  <div class="tab" onclick="showTab('quiz')">🎯 الاختبار</div>
+  <div class="tab" onclick="showTab('flash')">⚡ البطاقات</div>
+  <div class="tab" onclick="showTab('links')">🔗 الروابط</div>
+</div>
+
+<main>
+
+<!-- ══════════ HOME ══════════ -->
+<div id="tab-home">
+  <div class="welcome">
+    <h1>📚 أسئلة — ما نوع النسيج؟</h1>
+    <p>42 سؤالاً وزارياً شاملاً من الفصل الثاني<br>اختر الوضع المناسب للدراسة</p>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-c"><div class="stat-num" style="color:var(--pink)">42</div><div class="stat-lbl">سؤال</div></div>
+    <div class="stat-c"><div class="stat-num" style="color:var(--gold)" id="home-correct">0</div><div class="stat-lbl">صحيح</div></div>
+    <div class="stat-c"><div class="stat-num" style="color:var(--teal)" id="home-pct">0%</div><div class="stat-lbl">النسبة</div></div>
+  </div>
+
+  <div class="mode-grid">
+    <div class="mode-card" onclick="showTab('study')">
+      <span class="mode-icon">📖</span>
+      <div class="mode-name">المذاكرة</div>
+      <div class="mode-desc">راجع كل الأنسجة مع الأعداد الوزارية</div>
+    </div>
+    <div class="mode-card" onclick="showTab('quiz')">
+      <span class="mode-icon">🎯</span>
+      <div class="mode-name">الاختبار</div>
+      <div class="mode-desc">اختر الإجابة الصحيحة من 4 خيارات</div>
+    </div>
+    <div class="mode-card" onclick="showTab('flash')">
+      <span class="mode-icon">⚡</span>
+      <div class="mode-name">البطاقات</div>
+      <div class="mode-desc">بطاقات سريعة — اضغط للكشف</div>
+    </div>
+  </div>
+
+  <div class="links-wrap">
+    <a href="https://t.me/RidhaMohammed1" target="_blank" class="tg-link">
+      <div class="tg-icon ch">📢</div>
+      <div><div class="tg-name">قناة الأستاذ رضا محمد</div><div class="tg-desc">ملاحظات وتحضيرات وشروحات</div><div class="tg-url">t.me/RidhaMohammed1</div></div>
+    </a>
+    <a href="https://t.me/mynotes456" target="_blank" class="tg-link">
+      <div class="tg-icon gp">👥</div>
+      <div><div class="tg-name">قروب الملاحظات والوزاريات</div><div class="tg-desc">جميع الملفات والتحضيرات في مكان واحد</div><div class="tg-url">t.me/mynotes456</div></div>
+    </a>
+    <a href="https://t.me/Ridha91_bot" target="_blank" class="tg-link">
+      <div class="tg-icon bt">🤖</div>
+      <div><div class="tg-name">بوت الاستفسار</div><div class="tg-desc">للاستفسار والتواصل</div><div class="tg-url">@Ridha91_bot</div></div>
+    </a>
+  </div>
+</div>
+
+<!-- ══════════ STUDY ══════════ -->
+<div id="tab-study" style="display:none"></div>
+
+<!-- ══════════ QUIZ ══════════ -->
+<div id="tab-quiz" style="display:none"></div>
+
+<!-- ══════════ FLASH ══════════ -->
+<div id="tab-flash" style="display:none"></div>
+
+<!-- ══════════ LINKS ══════════ -->
+<div id="tab-links" style="display:none">
+  <div class="sec-hd">🔗 روابط مهمة</div>
+  <div class="links-wrap">
+    <a href="https://t.me/RidhaMohammed1" target="_blank" class="tg-link">
+      <div class="tg-icon ch">📢</div>
+      <div><div class="tg-name">قناة الأستاذ رضا محمد</div><div class="tg-desc">ملاحظات وتحضيرات وشروحات يومية</div><div class="tg-url">t.me/RidhaMohammed1</div></div>
+    </a>
+    <a href="https://t.me/mynotes456" target="_blank" class="tg-link">
+      <div class="tg-icon gp">👥</div>
+      <div><div class="tg-name">قروب الملاحظات والوزاريات</div><div class="tg-desc">جميع الملفات والتحضيرات في مكان واحد</div><div class="tg-url">t.me/mynotes456</div></div>
+    </a>
+    <a href="https://t.me/Ridha91_bot" target="_blank" class="tg-link">
+      <div class="tg-icon bt">🤖</div>
+      <div><div class="tg-name">بوت الاستفسار</div><div class="tg-desc">للاستفسار والتواصل المباشر</div><div class="tg-url">@Ridha91_bot</div></div>
+    </a>
+  </div>
+  <div style="text-align:center;color:var(--muted);font-size:.78rem;padding:16px 0">
+    <div>أسئلة / ما نوع النسيج — رضا محمد</div>
+    <div style="margin-top:4px">© رضا محمد / Ridha Mohammed 2026</div>
+  </div>
+</div>
+
+</main>
+
+<script>
+// ══════════════════════════════════════════
+// DATA — 42 items from PDF
+// ══════════════════════════════════════════
+const data = [
+  // MERISTEMATIC
+  {id:1, struct:'قمم الجذور والسيقان', tissue:'نسيج مرستيمي قمي', cat:'مرستيمي', years:'2013ت، 2013د2، 2014د1، 2019د1خ، 2023ت', hot:true},
+  {id:2, struct:'السالميات', tissue:'النسيج المرستيمي البيني', cat:'مرستيمي', years:'2014د2، 2015د2'},
+  {id:3, struct:'قاعدة نصل الورقة', tissue:'النسيج المرستيمي البيني', cat:'مرستيمي', years:'التلفزيون التربوي'},
+  // FUNDAMENTAL
+  {id:4, struct:'القشرة', tissue:'النسيج الأساس', cat:'أساس', years:'2015د1'},
+  {id:5, struct:'الأشعة اللبية', tissue:'النسيج الأساس', cat:'أساس', years:'2015د2'},
+  {id:6, struct:'الجذور والسيقان', tissue:'النسيج الأساس', cat:'أساس', years:'2013ت'},
+  // SCLERENCHYMA
+  {id:7, struct:'الكمثرى', tissue:'نسيج سكلرنكيمي — خلايا صخرية', cat:'سكلرنكيمي', years:'2013د1، 2016د2، 2020د2، 2021د1، 2024د1', hot:true},
+  {id:8, struct:'الخلايا الصخرية', tissue:'نسيج سكلرنكيمي', cat:'سكلرنكيمي', years:'2015د1خ'},
+  // EPITHELIAL — simple squamous
+  {id:9, struct:'بطانة التجاويف الجسمية', tissue:'نسيج ظهاري حرشفي بسيط', cat:'ظهاري', years:'2014ت، 2015ت، 2016د2، 2017د1', hot:true},
+  {id:10, struct:'بطانة جسيمات مالبيجي', tissue:'نسيج ظهاري حرشفي بسيط', cat:'ظهاري', years:'2015د2، 2022ت، 2024د1', hot:true},
+  {id:11, struct:'حويصلات الرئة', tissue:'نسيج ظهاري حرشفي بسيط', cat:'ظهاري', years:'2017د1خ'},
+  // simple cuboidal
+  {id:12, struct:'بطانة نبيبات الكلية', tissue:'نسيج ظهاري مكعبي بسيط', cat:'ظهاري', years:'2016د3خ، 2019د1خ'},
+  {id:13, struct:'بطانة الغدد اللعابية', tissue:'نسيج ظهاري مكعبي بسيط', cat:'ظهاري', years:'2016د2خ، 2015د1'},
+  // simple columnar
+  {id:14, struct:'بطانة الأمعاء', tissue:'نسيج ظهاري عمودي بسيط', cat:'ظهاري', years:'2014د1، 2015د1، 2016د3خ، 2021د1، 2022ت، 2022د2', hot:true},
+  // pseudostratified
+  {id:15, struct:'بطانة الرغامي', tissue:'نسيج ظهاري عمودي مطبق كاذب', cat:'ظهاري', years:'2013ت، 2014د2، 2019د2، 2020ت، 2020د2، 2021ت', hot:true},
+  // stratified squamous keratinized
+  {id:16, struct:'بشرة الجلد', tissue:'نسيج ظهاري مطبق حرشفي متقرن', cat:'ظهاري', years:'2014د1، 2015د1خ', hot:true},
+  // stratified squamous
+  {id:17, struct:'بطانة التجويف الفمي', tissue:'نسيج ظهاري مطبق حرشفي', cat:'ظهاري', years:'2016د2خ، 2022د2'},
+  {id:18, struct:'بطانة المريء', tissue:'نسيج ظهاري مطبق حرشفي', cat:'ظهاري', years:'2016د3خ، 2022ت'},
+  // stratified cuboidal
+  {id:19, struct:'بطانة قنوات الغدد العرقية', tissue:'نسيج ظهاري مطبق مكعبي', cat:'ظهاري', years:''},
+  {id:20, struct:'بطانة النبيبات المنوية', tissue:'نسيج ظهاري مطبق مكعبي', cat:'ظهاري', years:'2016ت، 2016د1خ، 2016د3خ، 2021د1'},
+  // stratified columnar
+  {id:21, struct:'بطانة الاحليل', tissue:'نسيج ظهاري مطبق عمودي', cat:'ظهاري', years:'2013ت، 2013د2، 2014د1، 2015د2، 2016ت، 2019د1، 2019د2، 2021ت', hot:true},
+  // transitional
+  {id:22, struct:'بطانة المثانة البولية', tissue:'نسيج ظهاري متحول', cat:'ظهاري', years:'2013ت، 2013د2، 2014د1، 2015ت، 2016د2، 2020ت، 2021د2، 2024د1', hot:true},
+  {id:23, struct:'بطانة الحالب', tissue:'نسيج ظهاري متحول', cat:'ظهاري', years:'2015د1، 2016ت، 2022ت'},
+  {id:24, struct:'بطانة حوض الكلية', tissue:'نسيج ظهاري متحول', cat:'ظهاري', years:'2015د2خ، 2016د1خ، 2017د1، 2023ت'},
+  // CONNECTIVE
+  {id:25, struct:'بين أعضاء الجسم المختلفة', tissue:'نسيج ضام هلالي (خلالي)', cat:'ضام', years:''},
+  {id:26, struct:'جسم الجنين', tissue:'نسيج ضام متوسط', cat:'ضام', years:''},
+  {id:27, struct:'الأعضاء اللمفية', tissue:'نسيج ضام شبكي', cat:'ضام', years:'2014ت، 2014د2، 2015ت'},
+  {id:28, struct:'نقي العظم', tissue:'نسيج ضام شبكي', cat:'ضام', years:'2016د1خ، 2019د2، 2021د1، 2022د2'},
+  {id:29, struct:'الكبد', tissue:'نسيج ضام شبكي', cat:'ضام', years:'2016د2خ، 2018د1خ، 2021د2، 2023ت', hot:true},
+  {id:30, struct:'الحبل السري', tissue:'نسيج ضام مخاطاني', cat:'ضام', years:'2014د1، 2020د2، 2021ت، 2021د2، 2022ت، 2022د2، 2024د1', hot:true},
+  {id:31, struct:'الأوتار', tissue:'نسيج ضام أبيض كثيف منتظم', cat:'ضام', years:'2014د1، 2016ت، 2021د2', hot:true},
+  {id:32, struct:'أدمة الجلد', tissue:'نسيج ضام أبيض كثيف غير منتظم', cat:'ضام', years:'2015ت، 2019د1خ، 2019د2، 2022د2، 2023ت', hot:true},
+  {id:33, struct:'الرابط القفوي في منطقة العنق', tissue:'نسيج ضام أصفر كثيف', cat:'ضام', years:'2021د1'},
+  // CARTILAGE
+  {id:34, struct:'الرغامي', tissue:'غضروف شفاف', cat:'غضروف', years:'2021ت'},
+  {id:35, struct:'الأقراص بين الفقرات', tissue:'غضروف ليفي أبيض (نسيج ضام متخصص)', cat:'غضروف', years:'2015د2'},
+  {id:36, struct:'صيوان الأذن', tissue:'غضروف مطاط (أو مرن أو أصفر)', cat:'غضروف', years:'2013ت، 2013د2، 2015ت، 2016د2خ، 2020د2، 2021د2، 2024د1', hot:true},
+  // SPECIALIZED
+  {id:37, struct:'العظم', tissue:'نسيج ضام متخصص', cat:'متخصص', years:'2023د3 متميزين'},
+  {id:38, struct:'الدم', tissue:'نسيج ضام متخصص', cat:'متخصص', years:'2013ت، 2013د1، 2014ت', hot:true},
+  // MUSCLE
+  {id:39, struct:'جدران الأوعية الدموية', tissue:'عضلات ملساء', cat:'عضلي', years:'2016د2خ', hot:true},
+  {id:40, struct:'جدران القلب', tissue:'عضلات قلبية', cat:'عضلي', years:'وزاري قديم مهم', hot:true},
+  // NERVOUS (common in biology)
+  {id:41, struct:'المايلين', tissue:'نسيج عصبي', cat:'عصبي', years:''},
+  {id:42, struct:'الدماغ والحبل الشوكي', tissue:'نسيج عصبي', cat:'عصبي', years:''},
+];
+
+// All unique tissues for shuffling
+const allTissues = [...new Set(data.map(d=>d.tissue))];
+
+// GROUPS for study mode
+const groups = {
+  'نسيج مرستيمي': data.filter(d=>d.cat==='مرستيمي'),
+  'النسيج الأساس': data.filter(d=>d.cat==='أساس'),
+  'نسيج سكلرنكيمي': data.filter(d=>d.cat==='سكلرنكيمي'),
+  'نسيج ظهاري': data.filter(d=>d.cat==='ظهاري'),
+  'نسيج ضام': data.filter(d=>d.cat==='ضام'),
+  'غضروف': data.filter(d=>d.cat==='غضروف'),
+  'نسيج ضام متخصص': data.filter(d=>d.cat==='متخصص'),
+  'نسيج عضلي': data.filter(d=>d.cat==='عضلي'),
+  'نسيج عصبي': data.filter(d=>d.cat==='عصبي'),
+};
+
+const groupColors = {
+  'نسيج مرستيمي':'#20d0a0','النسيج الأساس':'#4090f8','نسيج سكلرنكيمي':'#a870f8',
+  'نسيج ظهاري':'#f050a0','نسيج ضام':'#f0b020','غضروف':'#f07040',
+  'نسيج ضام متخصص':'#e04060','نسيج عضلي':'#e06040','نسيج عصبي':'#60c0f8'
+};
+
+// State
+let quizAnswered = {};
+let quizScore = 0;
+let flashIdx = 0;
+let flashShown = false;
+const flashOrder = shuffleArr([...Array(data.length).keys()]);
+
+function shuffleArr(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+// ══════════════════════════════════════════
+// BUILD STUDY TAB
+// ══════════════════════════════════════════
+function buildStudy(){
+  const el = document.getElementById('tab-study');
+  let html = '<div class="sec-hd">📖 مراجعة كل الأنسجة</div>';
+  Object.entries(groups).forEach(([gname, items])=>{
+    if(!items.length)return;
+    const col = groupColors[gname]||'var(--pink)';
+    html += `<div class="tissue-group">
+      <div class="tg-header" onclick="toggleGroup(this)">
+        <span class="tg-name" style="color:${col}">${gname}</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="tg-count" style="background:${col}22;border-color:${col}55;color:${col}">${items.length} عنصر</span>
+          <span class="tg-arrow">▼</span>
+        </div>
+      </div>
+      <div class="tg-body">`;
+    items.forEach(it=>{
+      html += `<div class="tg-row">
+        <span class="tg-num" style="background:${col}22;border-color:${col}44;color:${col}">${it.id}</span>
+        <div style="flex:1">
+          <div class="tg-struct">${it.struct}${it.hot?' <span class="star">⭐</span>':''}</div>
+          ${it.years?`<div class="tg-years">${it.years}</div>`:''}
+        </div>
+        <div style="font-size:.76rem;color:${col};font-weight:700;text-align:left;max-width:140px;line-height:1.4">${it.tissue}</div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  });
+  el.innerHTML = html;
+}
+
+function toggleGroup(hdr){
+  hdr.classList.toggle('open');
+  hdr.nextElementSibling.classList.toggle('open');
+}
+
+// ══════════════════════════════════════════
+// BUILD QUIZ TAB
+// ══════════════════════════════════════════
+function buildQuiz(){
+  const el = document.getElementById('tab-quiz');
+  let html = `<div class="score-board" id="quiz-score-board" style="display:none">
+    <div class="sc-big" id="qsb-val">0/42</div>
+    <div class="sc-lbl">نتيجتك في الاختبار</div>
+    <div class="sc-grade" id="qsb-grade"></div>
+    <div class="br" style="margin-top:14px">
+      <button class="btn bp bsm" onclick="resetQuiz()">إعادة الاختبار 🔄</button>
+    </div>
+  </div>`;
+
+  data.forEach(item=>{
+    // Generate 3 wrong options
+    const wrongs = shuffleArr(allTissues.filter(t=>t!==item.tissue)).slice(0,3);
+    const opts = shuffleArr([item.tissue,...wrongs]);
+    html += `<div class="q-card" id="qc-${item.id}">
+      <div class="q-text">
+        <span class="q-num">${item.id}</span>
+        <div>
+          <span>${item.struct}</span>
+          ${item.hot?'<span style="color:var(--gold);font-size:.7rem"> ⭐</span>':''}
+          ${item.years?`<div class="q-years-tag">${item.years}</div>`:''}
+        </div>
+      </div>
+      <div class="opts">
+        ${opts.map(o=>`<div class="opt" onclick="answerQ(this,${item.id},'${o.replace(/'/g,"\\'")}','${item.tissue.replace(/'/g,"\\'")}')"> ${o}</div>`).join('')}
+      </div>
+      <div class="q-fb" id="qfb-${item.id}"></div>
+    </div>`;
+  });
+  html += `<div class="br"><button class="btn bp" onclick="showFinalScore()">عرض النتيجة النهائية 🏆</button><button class="btn bs bsm" onclick="resetQuiz()">إعادة 🔄</button></div>`;
+  el.innerHTML = html;
+}
+
+function answerQ(el, id, chosen, correct){
+  if(quizAnswered[id])return;
+  quizAnswered[id]=true;
+  const card = document.getElementById('qc-'+id);
+  const fb = document.getElementById('qfb-'+id);
+  el.closest('.opts').querySelectorAll('.opt').forEach(o=>o.classList.add('off'));
+  if(chosen===correct){
+    el.classList.add('ok');
+    card.classList.add('correct');
+    fb.textContent='✅ إجابة صحيحة!';
+    fb.className='q-fb show ok';
+    quizScore++;
+  } else {
+    el.classList.add('no');
+    card.classList.add('wrong');
+    el.closest('.opts').querySelectorAll('.opt').forEach(o=>{
+      if(o.textContent.trim()===correct)o.classList.add('reveal');
+    });
+    fb.textContent=`❌ خطأ. الإجابة الصحيحة: ${correct}`;
+    fb.className='q-fb show no';
+  }
+  updateStats();
+}
+
+function showFinalScore(){
+  const sb = document.getElementById('quiz-score-board');
+  document.getElementById('qsb-val').textContent = quizScore+'/'+data.length;
+  const pct = Math.round(quizScore/data.length*100);
+  const grade = pct>=90?'ممتاز 🌟':pct>=75?'جيد جداً 👍':pct>=60?'جيد 📚':'يحتاج مراجعة 💪';
+  document.getElementById('qsb-grade').textContent = `${pct}% — ${grade}`;
+  document.getElementById('qsb-grade').style.color = pct>=75?'var(--teal)':'var(--pink)';
+  sb.style.display='block';
+  sb.scrollIntoView({behavior:'smooth'});
+}
+
+function resetQuiz(){
+  quizAnswered={};quizScore=0;
+  buildQuiz();
+  updateStats();
+  document.getElementById('tab-quiz').scrollTo(0,0);
+  window.scrollTo(0,0);
+}
+
+// ══════════════════════════════════════════
+// BUILD FLASH TAB
+// ══════════════════════════════════════════
+function buildFlash(){
+  renderFlash();
+}
+
+function renderFlash(){
+  const el = document.getElementById('tab-flash');
+  const item = data[flashOrder[flashIdx]];
+  el.innerHTML = `
+  <div style="margin-bottom:12px">
+    <div class="flash-nav">
+      <button class="btn bs bsm" onclick="flashPrev()">→ السابق</button>
+      <div class="flash-ctr">بطاقة <span>${flashIdx+1}</span> / ${data.length}</div>
+      <button class="btn bs bsm" onclick="flashNext()">التالي ←</button>
+    </div>
+    <div style="height:4px;background:var(--border);border-radius:4px;overflow:hidden;margin-bottom:14px">
+      <div style="height:100%;width:${((flashIdx+1)/data.length*100)}%;background:linear-gradient(90deg,var(--pink),var(--teal));transition:width .3s"></div>
+    </div>
+  </div>
+  <div class="flash-card" onclick="toggleFlash(this)">
+    <div class="flash-q">${item.struct}${item.hot?' ⭐':''}</div>
+    <div class="flash-hint">اضغط للكشف عن الإجابة</div>
+    <div class="flash-a" id="flash-ans">${item.tissue}</div>
+    ${item.years?`<div class="flash-years" id="flash-yr" style="display:none">${item.years}</div>`:''}
+  </div>
+  <div class="flash-btns">
+    <button class="btn bt bsm" onclick="flashNext()">التالي ←</button>
+    <button class="btn bp bsm" onclick="flashShuffle()">عشوائي 🔀</button>
+    <button class="btn bs bsm" onclick="flashGoTo()">انتقل للرقم</button>
+  </div>
+  <div style="text-align:center;margin-top:10px;color:var(--muted);font-size:.72rem">اسحب يساراً للتالي — يميناً للسابق</div>
+  `;
+  flashShown=false;
+}
+
+function toggleFlash(card){
+  const ans=document.getElementById('flash-ans');
+  const yr=document.getElementById('flash-yr');
+  flashShown=!flashShown;
+  ans.classList.toggle('show',flashShown);
+  if(yr)yr.style.display=flashShown?'block':'none';
+  card.querySelector('.flash-hint').style.display=flashShown?'none':'block';
+}
+function flashNext(){flashIdx=(flashIdx+1)%data.length;renderFlash()}
+function flashPrev(){flashIdx=(flashIdx-1+data.length)%data.length;renderFlash()}
+function flashShuffle(){shuffleArr(flashOrder);flashIdx=0;renderFlash()}
+function flashGoTo(){
+  const n=prompt('أدخل رقم البطاقة (1-'+data.length+'):');
+  const num=parseInt(n);
+  if(num>=1&&num<=data.length){flashIdx=flashOrder.indexOf(num-1);if(flashIdx<0)flashIdx=0;renderFlash()}
+}
+
+// Flash swipe
+let ftx=0,fty=0;
+document.addEventListener('touchstart',e=>{ftx=e.touches[0].clientX;fty=e.touches[0].clientY},{passive:true});
+document.addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-ftx;
+  const dy=e.changedTouches[0].clientY-fty;
+  if(currentTab==='flash'&&Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5){
+    if(dx<0)flashNext(); else flashPrev();
+  }
+},{passive:true});
+
+// ══════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════
+let currentTab='home';
+let builtTabs={study:false,quiz:false,flash:false};
+
+function showTab(name){
+  document.querySelectorAll('.tabs .tab').forEach((t,i)=>{
+    const names=['home','study','quiz','flash','links'];
+    t.classList.toggle('active',names[i]===name);
+  });
+  ['home','study','quiz','flash','links'].forEach(n=>{
+    const el=document.getElementById('tab-'+n);
+    if(el)el.style.display=n===name?'block':'none';
+  });
+  currentTab=name;
+  window.scrollTo(0,0);
+
+  if(name==='study'&&!builtTabs.study){buildStudy();builtTabs.study=true}
+  if(name==='quiz'&&!builtTabs.quiz){buildQuiz();builtTabs.quiz=true}
+  if(name==='flash'&&!builtTabs.flash){buildFlash();builtTabs.flash=true}
+}
+
+function updateStats(){
+  const total=Object.keys(quizAnswered).length;
+  const pct=total?Math.round(quizScore/total*100):0;
+  document.getElementById('hdr-score').textContent=quizScore+' / '+data.length;
+  document.getElementById('home-correct').textContent=quizScore;
+  document.getElementById('home-pct').textContent=pct+'%';
+  document.getElementById('prog').style.width=(Object.keys(quizAnswered).length/data.length*100)+'%';
+}
+
+// Init
+showTab('home');
+</script>
+</body>
+</html>
