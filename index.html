@@ -89,11 +89,26 @@ function createPipe() {
 // تصادم حسب hitbox
 function collision(pipe) {
     let hb = bird.hitbox;
-    return (bird.x + (bird.width - hb.w)/2) < pipe.x + pipe.width &&
-           (bird.x + (bird.width - hb.w)/2 + hb.w) > pipe.x &&
-           (bird.y + (bird.height - hb.h)/2) < pipe.height &&
-           (bird.y + (bird.height - hb.h)/2 + hb.h) > pipe.y;
+    let bLeft   = bird.x + (bird.width - hb.w) / 2;
+    let bRight  = bLeft + hb.w;
+    let bTop    = bird.y + (bird.height - hb.h) / 2;
+    let bBottom = bTop + hb.h;
+
+    let pLeft  = pipe.x;
+    let pRight = pipe.x + pipe.width;
+
+    // لا يوجد تداخل أفقي → لا تصادم
+    if (bRight <= pLeft || bLeft >= pRight) return false;
+
+    // الأنبوب العلوي: يبدأ من 0 وينتهي عند pipe.height
+    if (pipe.y === 0 && bTop < pipe.height) return true;
+
+    // الأنبوب السفلي: يبدأ من pipe.y وينتهي أسفل الشاشة
+    if (pipe.y > 0 && bBottom > pipe.y) return true;
+
+    return false;
 }
+
 
 function update() {
     bird.velocity += bird.gravity;
