@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -53,48 +54,30 @@ let score = 0;
 let frame = 0;
 let lastPipeY = displayHeight/2 - 75; // ارتفاع الفتحة السابقة
 
-let isGameOver = false;
-let gameOverButton = null;
-
-window.addEventListener('keydown', () => { if(!isGameOver) bird.velocity = bird.lift; });
-window.addEventListener('touchstart', (e) => { 
-    e.preventDefault(); 
-    if(!isGameOver) bird.velocity = bird.lift;
+window.addEventListener('keydown', () => bird.velocity = bird.lift);
+window.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    bird.velocity = bird.lift;
 }, { passive: false });
 
-canvas.addEventListener('click', function(e){
-    if(isGameOver && gameOverButton){
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
-        if(x >= gameOverButton.x && x <= gameOverButton.x + gameOverButton.w &&
-           y >= gameOverButton.y && y <= gameOverButton.y + gameOverButton.h){
-            // إعادة اللعبة
-            score = 0;
-            bird.y = displayHeight/2;
-            bird.velocity = 0;
-            pipes = [];
-            lastPipeY = displayHeight/2 - 75;
-            isGameOver = false;
-        }
-    }
-});
 
 function createPipe() {
-    const gap = 130; // فتحة أصغر → أصعب
+    const gap = 130; // أصغر فتحة → أصعب
     const minY = 50;
     const maxY = displayHeight - gap - 50;
 
-    const maxDiff = 200; // فرق أكبر بين فتحة وأخرى
+    const maxDiff = 300; // فرق أكبر بين فتحة وأخرى
     let pipeY;
+
+    // 30% فرصة لارتفاع عشوائي كامل → قفز طويل مفاجئ
     if(Math.random() < 0.3){
         pipeY = Math.random() * (maxY - minY) + minY;
     } else {
-        let change = (Math.random() * 2 * maxDiff - maxDiff);
+        let change = (Math.random() * 2 * maxDiff - maxDiff); // ±300px
         pipeY = lastPipeY + change;
     }
 
+    // التأكد ضمن الشاشة
     if(pipeY < minY) pipeY = minY;
     if(pipeY > maxY) pipeY = maxY;
 
@@ -103,7 +86,7 @@ function createPipe() {
     pipes.push({ x: displayWidth, y: 0, width: 20, height: pipeY });
     pipes.push({ x: displayWidth, y: pipeY + gap, width: 20, height: displayHeight - pipeY - gap });
 }
-
+// تصادم حسب hitbox
 function collision(pipe) {
     let hb = bird.hitbox;
     return (bird.x + (bird.width - hb.w)/2) < pipe.x + pipe.width &&
@@ -113,27 +96,26 @@ function collision(pipe) {
 }
 
 function update() {
-    if(!isGameOver){
-        bird.velocity += bird.gravity;
-        bird.y += bird.velocity;
+    bird.velocity += bird.gravity;
+    bird.y += bird.velocity;
 
-        if (bird.y > displayHeight || bird.y < 0) endGame();
+    if (bird.y > displayHeight || bird.y < 0) resetGame();
 
-        frame++;
-        if (frame % 75 === 0) createPipe();
+    frame++;
+    if (frame % 75 === 0) createPipe();
 
-        pipes.forEach((pipe, index) => {
-            pipe.x -= 3.2;
-            if(collision(pipe)) endGame();
-            if(pipe.x + pipe.width < 0){
-                pipes.splice(index,1);
-                score++;
-            }
-        });
-    }
+    pipes.forEach((pipe, index) => {
+        pipe.x -= 3.2; // سرعة الأعمدة
+        if(collision(pipe)) resetGame();
+        if(pipe.x + pipe.width < 0){
+            pipes.splice(index,1);
+            score++;
+        }
+    });
 
-    // الخلفية
+    // رسم الخلفية
     if(bgImage.complete){
+        // نأخذ منتصف الصورة تلقائيًا لتناسب الشاشة
         let ratio = Math.max(displayWidth/bgImage.width, displayHeight/bgImage.height);
         let w = bgImage.width*ratio;
         let h = bgImage.height*ratio;
@@ -145,7 +127,7 @@ function update() {
         ctx.fillRect(0,0,displayWidth,displayHeight);
     }
 
-    // الطائر
+    // رسم الطائر
     if(birdImage.complete){
         ctx.save();
         ctx.translate(bird.x + bird.width/2, bird.y + bird.height/2);
@@ -156,62 +138,24 @@ function update() {
         ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
     }
 
-    // الأعمدة
+    // رسم الأعمدة
     pipes.forEach(pipe => {
         ctx.fillStyle='yellow';
         ctx.fillRect(pipe.x, pipe.y, pipe.width, pipe.height);
     });
 
-    // النقاط
+    // عرض النقاط
     ctx.fillStyle='yellow';
     ctx.font='20px Arial';
     ctx.fillText('النقاط: '+score,10,20);
-
-    // واجهة Game Over
-    if(isGameOver){
-        const rectWidth = 300;
-        const rectHeight = 400;
-        const rectX = displayWidth/2 - rectWidth/2;
-        const rectY = displayHeight/2 - rectHeight/2;
-
-        ctx.fillStyle = 'rgba(0,0,0,0.7)';
-        ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
-
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = 4;
-        ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
-
-        if(birdImage.complete){
-            let birdSize = 100;
-            ctx.drawImage(birdImage, displayWidth/2 - birdSize/2, rectY - birdSize/2, birdSize, birdSize);
-        }
-
-        ctx.fillStyle = 'white';
-        ctx.font = '40px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('ايا فايج', displayWidth/2, rectY + 80);
-
-        ctx.font = '30px Arial';
-        ctx.fillText('النقاط: ' + score, displayWidth/2, rectY + 130);
-
-        const buttonWidth = 80;
-        const buttonHeight = 60;
-        const buttonX = displayWidth/2 - buttonWidth/2;
-        const buttonY = rectY + rectHeight - 80;
-
-        ctx.fillStyle = '#FFD700';
-        ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
-
-        ctx.fillStyle = 'black';
-        ctx.font = '40px Arial';
-        ctx.fillText('🔁', displayWidth/2, buttonY + 45);
-
-        gameOverButton = {x: buttonX, y: buttonY, w: buttonWidth, h: buttonHeight};
-    }
 }
 
-function endGame(){
-    isGameOver = true;
+function resetGame(){
+    bird.y = displayHeight/2;
+    bird.velocity = 0;
+    pipes = [];
+    score = 0;
+    lastPipeY = displayHeight/2 - 75;
 }
 
 function gameLoop(){
@@ -221,6 +165,7 @@ function gameLoop(){
 
 gameLoop();
 
+// إعادة ضبط حجم الشاشة
 window.addEventListener('resize', ()=>{
     location.reload();
 });
