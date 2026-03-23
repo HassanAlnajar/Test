@@ -59,18 +59,24 @@ window.addEventListener('touchstart', (e) => {
     bird.velocity = bird.lift;
 }, { passive: false });
 
-// إنشاء أعمدة مع فتحة منطقية
+
 function createPipe() {
-    const gap = 150; // فتحة الطائر الكبير
+    const gap = 130; // أصغر فتحة → أصعب
     const minY = 50;
     const maxY = displayHeight - gap - 50;
 
-    // فرق عشوائي أكبر وأحيانًا صعود كبير أو هبوط كبير
-    const maxDiff = 200; // أقصى فرق بين فتحة وأخرى
-    let change = (Math.random() * 2 * maxDiff - maxDiff); // ±200px
-    let pipeY = lastPipeY + change;
+    const maxDiff = 300; // فرق أكبر بين فتحة وأخرى
+    let pipeY;
 
-    // التأكد أن العمود ضمن حدود الشاشة
+    // 30% فرصة لارتفاع عشوائي كامل → قفز طويل مفاجئ
+    if(Math.random() < 0.3){
+        pipeY = Math.random() * (maxY - minY) + minY;
+    } else {
+        let change = (Math.random() * 2 * maxDiff - maxDiff); // ±300px
+        pipeY = lastPipeY + change;
+    }
+
+    // التأكد ضمن الشاشة
     if(pipeY < minY) pipeY = minY;
     if(pipeY > maxY) pipeY = maxY;
 
@@ -79,7 +85,6 @@ function createPipe() {
     pipes.push({ x: displayWidth, y: 0, width: 20, height: pipeY });
     pipes.push({ x: displayWidth, y: pipeY + gap, width: 20, height: displayHeight - pipeY - gap });
 }
-
 // تصادم حسب hitbox
 function collision(pipe) {
     let hb = bird.hitbox;
