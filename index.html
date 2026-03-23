@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -28,7 +27,6 @@
 const canvas = document.getElementById('flappyBirdCanvas');
 const ctx = canvas.getContext('2d');
 
-// شاشة كاملة + Retina
 let displayWidth = window.innerWidth;
 let displayHeight = window.innerHeight;
 let scale = window.devicePixelRatio || 1;
@@ -40,150 +38,281 @@ ctx.scale(scale, scale);
 ctx.imageSmoothingEnabled = true;
 ctx.imageSmoothingQuality = 'high';
 
-// الخلفية
 let bgImage = new Image();
 bgImage.src = 'CE20DCB8-55BF-4363-9A95-0CFD053150F7.jpeg';
 
-// الطائر
 let birdImage = new Image();
 birdImage.src = 'C5B8E2ED-5DF8-4A76-B9C4-210F07E30949.jpeg';
-let bird = { x: 50, y: 150, width: 50, height: 50, gravity: 0.5, lift: -7, velocity: 0, hitbox: {w:40, h:40} };
 
-let pipes = [];  
+let bird = { x: 50, y: 150, width: 50, height: 50, gravity: 0.5, lift: -7, velocity: 0, hitbox: {w:40, h:40} };
+let pipes = [];
 let score = 0;
 let frame = 0;
-let lastPipeY = displayHeight/2 - 75; // ارتفاع الفتحة السابقة
+let lastPipeY = displayHeight/2 - 75;
+let gameOver = false;
+let finalScore = 0;
 
-window.addEventListener('keydown', () => bird.velocity = bird.lift);
+// زر الإعادة
+const btn = {
+    x: 0, y: 0, w: 100, h: 55
+};
+
+window.addEventListener('keydown', () => {
+    if (!gameOver) bird.velocity = bird.lift;
+});
+
 window.addEventListener('touchstart', (e) => {
     e.preventDefault();
-    bird.velocity = bird.lift;
+    if (gameOver) {
+        handleRestart(e.touches[0].clientX, e.touches[0].clientY);
+    } else {
+        bird.velocity = bird.lift;
+    }
 }, { passive: false });
 
+canvas.addEventListener('click', (e) => {
+    if (gameOver) {
+        const rect = canvas.getBoundingClientRect();
+        handleRestart(e.clientX - rect.left, e.clientY - rect.top);
+    }
+});
+
+function handleRestart(cx, cy) {
+    if (cx >= btn.x && cx <= btn.x + btn.w &&
+        cy >= btn.y && cy <= btn.y + btn.h) {
+        resetGame();
+    }
+}
 
 function createPipe() {
-    const gap = 130; // أصغر فتحة → أصعب
+    const gap = 130;
     const minY = 50;
     const maxY = displayHeight - gap - 50;
-
-    const maxDiff = 300; // فرق أكبر بين فتحة وأخرى
+    const maxDiff = 300;
     let pipeY;
-
-    // 30% فرصة لارتفاع عشوائي كامل → قفز طويل مفاجئ
-    if(Math.random() < 0.3){
+    if (Math.random() < 0.3) {
         pipeY = Math.random() * (maxY - minY) + minY;
     } else {
-        let change = (Math.random() * 2 * maxDiff - maxDiff); // ±300px
+        let change = (Math.random() * 2 * maxDiff - maxDiff);
         pipeY = lastPipeY + change;
     }
-
-    // التأكد ضمن الشاشة
-    if(pipeY < minY) pipeY = minY;
-    if(pipeY > maxY) pipeY = maxY;
-
+    if (pipeY < minY) pipeY = minY;
+    if (pipeY > maxY) pipeY = maxY;
     lastPipeY = pipeY;
-
     pipes.push({ x: displayWidth, y: 0, width: 20, height: pipeY });
     pipes.push({ x: displayWidth, y: pipeY + gap, width: 20, height: displayHeight - pipeY - gap });
 }
-// تصادم حسب hitbox
+
 function collision(pipe) {
     let hb = bird.hitbox;
     let bLeft   = bird.x + (bird.width - hb.w) / 2;
     let bRight  = bLeft + hb.w;
     let bTop    = bird.y + (bird.height - hb.h) / 2;
     let bBottom = bTop + hb.h;
-
     let pLeft  = pipe.x;
     let pRight = pipe.x + pipe.width;
-
-    // لا يوجد تداخل أفقي → لا تصادم
     if (bRight <= pLeft || bLeft >= pRight) return false;
-
-    // الأنبوب العلوي: يبدأ من 0 وينتهي عند pipe.height
     if (pipe.y === 0 && bTop < pipe.height) return true;
-
-    // الأنبوب السفلي: يبدأ من pipe.y وينتهي أسفل الشاشة
     if (pipe.y > 0 && bBottom > pipe.y) return true;
-
     return false;
 }
 
+function drawBackground() {
+    if (bgImage.complete && bgImage.naturalWidth > 0) {
+        let ratio = Math.max(displayWidth / bgImage.width, displayHeight / bgImage.height);
+        let w = bgImage.width * ratio;
+        let h = bgImage.height * ratio;
+        let sx = (w - displayWidth) / 2 / ratio;
+        let sy = (h - displayHeight) / 2 / ratio;
+        ctx.drawImage(bgImage, sx, sy, displayWidth / ratio, displayHeight / ratio, 0, 0, displayWidth, displayHeight);
+    } else {
+        ctx.fillStyle = '#70c5ce';
+        ctx.fillRect(0, 0, displayWidth, displayHeight);
+    }
+}
+
+function drawGameOverScreen() {
+    // تعتيم الخلفية
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(0, 0, displayWidth, displayHeight);
+
+    const boxW = 260;
+    const boxH = 300;
+    const boxX = displayWidth / 2 - boxW / 2;
+    const boxY = displayHeight / 2 - boxH / 2 + 30;
+    const radius = 22;
+
+    // ظل المستطيل
+    ctx.shadowColor = 'rgba(0,0,0,0.35)';
+    ctx.shadowBlur = 18;
+
+    // المستطيل الرئيسي
+    ctx.fillStyle = '#fff8e7';
+    ctx.beginPath();
+    ctx.moveTo(boxX + radius, boxY);
+    ctx.lineTo(boxX + boxW - radius, boxY);
+    ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + radius);
+    ctx.lineTo(boxX + boxW, boxY + boxH - radius);
+    ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - radius, boxY + boxH);
+    ctx.lineTo(boxX + radius, boxY + boxH);
+    ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - radius);
+    ctx.lineTo(boxX, boxY + radius);
+    ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+
+    // صورة الطائر فوق المستطيل (متصلة به)
+    const imgSize = 90;
+    const imgX = displayWidth / 2 - imgSize / 2;
+    const imgY = boxY - imgSize / 2;
+
+    // دائرة خلف الصورة
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.25)';
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = '#ffe082';
+    ctx.beginPath();
+    ctx.arc(displayWidth / 2, imgY + imgSize / 2, imgSize / 2 + 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // الصورة داخل دائرة
+    ctx.beginPath();
+    ctx.arc(displayWidth / 2, imgY + imgSize / 2, imgSize / 2, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.clip();
+    if (birdImage.complete && birdImage.naturalWidth > 0) {
+        ctx.drawImage(birdImage, imgX, imgY, imgSize, imgSize);
+    } else {
+        ctx.fillStyle = 'yellow';
+        ctx.fillRect(imgX, imgY, imgSize, imgSize);
+    }
+    ctx.restore();
+
+    // نص "ايا فايج"
+    ctx.fillStyle = '#c0392b';
+    ctx.font = 'bold 32px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('ايا فايج', displayWidth / 2, boxY + 90);
+
+    // خط فاصل
+    ctx.strokeStyle = '#f0d080';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(boxX + 30, boxY + 105);
+    ctx.lineTo(boxX + boxW - 30, boxY + 105);
+    ctx.stroke();
+
+    // النقاط
+    ctx.fillStyle = '#555';
+    ctx.font = '18px Arial';
+    ctx.fillText('النقاط', displayWidth / 2, boxY + 135);
+
+    ctx.fillStyle = '#e67e22';
+    ctx.font = 'bold 42px Arial';
+    ctx.fillText(finalScore, displayWidth / 2, boxY + 185);
+
+    // زر الإعادة
+    const btnW = 100;
+    const btnH = 55;
+    const btnX = displayWidth / 2 - btnW / 2;
+    const btnY = boxY + 215;
+
+    btn.x = btnX; btn.y = btnY; btn.w = btnW; btn.h = btnH;
+
+    ctx.fillStyle = '#27ae60';
+    ctx.beginPath();
+    ctx.roundRect(btnX, btnY, btnW, btnH, 14);
+    ctx.fill();
+
+    ctx.font = '32px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('🔁', displayWidth / 2, btnY + 40);
+
+    ctx.textAlign = 'left';
+}
 
 function update() {
+    drawBackground();
+
+    if (gameOver) {
+        // ارسم الطائر ثابتًا
+        if (birdImage.complete && birdImage.naturalWidth > 0) {
+            ctx.save();
+            ctx.translate(bird.x + bird.width / 2, bird.y + bird.height / 2);
+            ctx.drawImage(birdImage, -bird.width / 2, -bird.height / 2, bird.width, bird.height);
+            ctx.restore();
+        }
+        pipes.forEach(pipe => {
+            ctx.fillStyle = 'yellow';
+            ctx.fillRect(pipe.x, pipe.y, pipe.width, pipe.height);
+        });
+        drawGameOverScreen();
+        return;
+    }
+
     bird.velocity += bird.gravity;
     bird.y += bird.velocity;
 
-    if (bird.y > displayHeight || bird.y < 0) resetGame();
+    if (bird.y > displayHeight || bird.y < 0) triggerGameOver();
 
     frame++;
     if (frame % 75 === 0) createPipe();
 
     pipes.forEach((pipe, index) => {
-        pipe.x -= 3.2; // سرعة الأعمدة
-        if(collision(pipe)) resetGame();
-        if(pipe.x + pipe.width < 0){
-            pipes.splice(index,1);
+        pipe.x -= 3.2;
+        if (collision(pipe)) triggerGameOver();
+        if (pipe.x + pipe.width < 0) {
+            pipes.splice(index, 1);
             score++;
         }
     });
 
-    // رسم الخلفية
-    if(bgImage.complete){
-        // نأخذ منتصف الصورة تلقائيًا لتناسب الشاشة
-        let ratio = Math.max(displayWidth/bgImage.width, displayHeight/bgImage.height);
-        let w = bgImage.width*ratio;
-        let h = bgImage.height*ratio;
-        let sx = (w - displayWidth)/2 / ratio;
-        let sy = (h - displayHeight)/2 / ratio;
-        ctx.drawImage(bgImage, sx, sy, displayWidth/ratio, displayHeight/ratio, 0, 0, displayWidth, displayHeight);
-    } else {
-        ctx.fillStyle = '#70c5ce';
-        ctx.fillRect(0,0,displayWidth,displayHeight);
-    }
-
-    // رسم الطائر
-    if(birdImage.complete){
+    if (birdImage.complete && birdImage.naturalWidth > 0) {
         ctx.save();
-        ctx.translate(bird.x + bird.width/2, bird.y + bird.height/2);
-        ctx.drawImage(birdImage, -bird.width/2, -bird.height/2, bird.width, bird.height);
+        ctx.translate(bird.x + bird.width / 2, bird.y + bird.height / 2);
+        ctx.drawImage(birdImage, -bird.width / 2, -bird.height / 2, bird.width, bird.height);
         ctx.restore();
     } else {
         ctx.fillStyle = 'yellow';
         ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
     }
 
-    // رسم الأعمدة
     pipes.forEach(pipe => {
-        ctx.fillStyle='yellow';
+        ctx.fillStyle = 'yellow';
         ctx.fillRect(pipe.x, pipe.y, pipe.width, pipe.height);
     });
 
-    // عرض النقاط
-    ctx.fillStyle='yellow';
-    ctx.font='20px Arial';
-    ctx.fillText('النقاط: '+score,10,20);
+    ctx.fillStyle = 'yellow';
+    ctx.font = '20px Arial';
+    ctx.fillText('النقاط: ' + score, 10, 20);
 }
 
-function resetGame(){
-    bird.y = displayHeight/2;
+function triggerGameOver() {
+    finalScore = score;
+    gameOver = true;
+}
+
+function resetGame() {
+    bird.y = displayHeight / 2;
     bird.velocity = 0;
     pipes = [];
     score = 0;
-    lastPipeY = displayHeight/2 - 75;
+    frame = 0;
+    lastPipeY = displayHeight / 2 - 75;
+    gameOver = false;
 }
 
-function gameLoop(){
+function gameLoop() {
     update();
     requestAnimationFrame(gameLoop);
 }
 
 gameLoop();
 
-// إعادة ضبط حجم الشاشة
-window.addEventListener('resize', ()=>{
-    location.reload();
-});
+window.addEventListener('resize', () => { location.reload(); });
 </script>
 </body>
 </html>
