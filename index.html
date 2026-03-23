@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flappy Bird Game</title>
+    <title>Flabby Swaddy</title>
     <style>
         body {
             margin: 0;
@@ -27,7 +27,10 @@
         canvas.width = 320;
         canvas.height = 480;
 
-        let bird = { x: 50, y: 150, width: 20, height: 20, gravity: 0.5, lift: -10, velocity: 0 };
+        let birdImage = new Image();
+        birdImage.src = 'C5B8E2ED-5DF8-4A76-B9C4-210F07E30949.jpeg';
+
+        let bird = { x: 50, y: 150, width: 20, height: 20, gravity: 0.5, lift: -7, velocity: 0 };
         let pipes = [];  
         let score = 0;
         let frame = 0;
@@ -70,8 +73,15 @@
             });
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = 'yellow';
-            ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
+            
+            // Draw bird image if loaded
+            if (birdImage.complete) {
+                ctx.drawImage(birdImage, bird.x, bird.y, bird.width, bird.height);
+            } else {
+                // Fallback to yellow rectangle while image loads
+                ctx.fillStyle = 'yellow';
+                ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
+            }
 
             pipes.forEach(pipe => {
                 ctx.fillStyle = 'green';
