@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Flabby Swaddy</title>
     <style>
         body {
@@ -16,6 +16,7 @@
         }
         canvas {
             border: 2px solid black;
+            touch-action: manipulation;
         }
     </style>
 </head>
@@ -24,19 +25,30 @@
     <script>
         const canvas = document.getElementById('flappyBirdCanvas');
         const ctx = canvas.getContext('2d');
+
         canvas.width = 320;
         canvas.height = 480;
+
+        // تحسين جودة الصور
+        ctx.imageSmoothingEnabled = true;
 
         let birdImage = new Image();
         birdImage.src = 'C5B8E2ED-5DF8-4A76-B9C4-210F07E30949.jpeg';
 
-        let bird = { x: 50, y: 150, width: 20, height: 20, gravity: 0.5, lift: -7, velocity: 0 };
+        // تكبير الطائر
+        let bird = { x: 50, y: 150, width: 50, height: 50, gravity: 0.5, lift: -7, velocity: 0 };
+
         let pipes = [];  
         let score = 0;
         let frame = 0;
 
         window.addEventListener('keydown', () => bird.velocity = bird.lift);
-        window.addEventListener('touchstart', () => bird.velocity = bird.lift);
+
+        // منع الزوم في الآيفون + القفز
+        window.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            bird.velocity = bird.lift;
+        }, { passive: false });
 
         function createPipe() {
             const pipeHeight = Math.random() * (canvas.height / 2);
@@ -45,7 +57,10 @@
         }
 
         function collision(pipe) {
-            return bird.x < pipe.x + pipe.width && bird.x + bird.width > pipe.x && bird.y < pipe.height && bird.y + bird.height > pipe.y;
+            return bird.x < pipe.x + pipe.width &&
+                   bird.x + bird.width > pipe.x &&
+                   bird.y < pipe.height &&
+                   bird.y + bird.height > pipe.y;
         }
 
         function update() {
@@ -63,9 +78,11 @@
 
             pipes.forEach((pipe, index) => {
                 pipe.x -= 2;
+
                 if (collision(pipe)) {
                     resetGame();
                 }
+
                 if (pipe.x + pipe.width < 0) {
                     pipes.splice(index, 1);
                     score++;
@@ -73,21 +90,22 @@
             });
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw bird image if loaded
+
+            // رسم الطائر
             if (birdImage.complete) {
                 ctx.drawImage(birdImage, bird.x, bird.y, bird.width, bird.height);
             } else {
-                // Fallback to yellow rectangle while image loads
                 ctx.fillStyle = 'yellow';
                 ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
             }
 
+            // رسم الأنابيب
             pipes.forEach(pipe => {
                 ctx.fillStyle = 'green';
                 ctx.fillRect(pipe.x, pipe.y, pipe.width, pipe.height);
             });
 
+            // عرض النقاط
             ctx.fillStyle = 'black';
             ctx.font = '20px Arial';
             ctx.fillText('Score: ' + score, 10, 20);
