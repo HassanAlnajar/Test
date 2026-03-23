@@ -65,7 +65,7 @@ function createPipe() {
     const minY = 50;
     const maxY = displayHeight - gap - 50;
     // ارتفاع العمود العلوي مع تحديد الفرق مع الارتفاع السابق ليكون سلس
-    let pipeY = lastPipeY + (Math.random()*200 - 100); // فرق ±100px
+    let pipeY = lastPipeY + (Math.random()*300 - 100); // فرق ±100px
     if(pipeY < minY) pipeY = minY;
     if(pipeY > maxY) pipeY = maxY;
     lastPipeY = pipeY;
