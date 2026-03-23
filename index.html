@@ -99,7 +99,7 @@ function update() {
     if (frame % 75 === 0) createPipe();
 
     pipes.forEach((pipe, index) => {
-        pipe.x -= 2.2; // سرعة الأعمدة
+        pipe.x -= 3.2; // سرعة الأعمدة
         if(collision(pipe)) resetGame();
         if(pipe.x + pipe.width < 0){
             pipes.splice(index,1);
