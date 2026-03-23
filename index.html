@@ -51,51 +51,54 @@ let bird = { x: 50, y: 150, width: 50, height: 50, gravity: 0.5, lift: -7, veloc
 let pipes = [];  
 let score = 0;
 let frame = 0;
-let lastPipeY = displayHeight/2 - 75; // ارتفاع الفتحة السابقة
-
+let lastPipeY = displayHeight/2 - 75; 
 let isGameOver = false;
 let gameOverButton = null;
 
 // التحكم
-window.addEventListener('keydown', () => { if(!isGameOver) bird.velocity = bird.lift; });
-window.addEventListener('touchstart', (e) => { e.preventDefault(); if(!isGameOver) bird.velocity = bird.lift; }, { passive: false });
+function flap() { if(!isGameOver) bird.velocity = bird.lift; }
+window.addEventListener('keydown', flap);
+window.addEventListener('touchstart', (e) => { e.preventDefault(); flap(); }, { passive: false });
 
-// دمج مستمع الزر والتأكد من scale
+// مستمع النقر للزر 🔁 واللعب
 canvas.addEventListener('click', function(e){
     const rect = canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left) * (canvas.width / rect.width) / scale;
     const y = (e.clientY - rect.top) * (canvas.height / rect.height) / scale;
 
-    // زر إعادة اللعبة
+    // الزر فقط عند الخسارة
     if(isGameOver && gameOverButton){
         if(x >= gameOverButton.x && x <= gameOverButton.x + gameOverButton.w &&
            y >= gameOverButton.y && y <= gameOverButton.y + gameOverButton.h){
-            score = 0;
-            bird.y = displayHeight/2;
-            bird.velocity = 0;
-            pipes = [];
-            lastPipeY = displayHeight/2 - 75;
-            isGameOver = false;
+            restartGame();
         }
+    } else if(!isGameOver){
+        flap();
     }
-
-    // الطائر أثناء اللعب
-    if(!isGameOver) bird.velocity = bird.lift;
 });
 
-// إنشاء أعمدة مع فتحة منطقية
+// إعادة ضبط اللعبة
+function restartGame(){
+    score = 0;
+    bird.y = displayHeight/2;
+    bird.velocity = 0;
+    pipes = [];
+    lastPipeY = displayHeight/2 - 75;
+    isGameOver = false;
+}
+
+// إنشاء أعمدة مع فتحة منطقية وصعبة
 function createPipe() {
-    const gap = 130; 
+    const gap = 130;
     const minY = 50;
     const maxY = displayHeight - gap - 50;
-
-    const maxDiff = 250; 
+    const maxDiff = 250;
     let pipeY;
 
     if(Math.random() < 0.3){
         pipeY = Math.random() * (maxY - minY) + minY;
     } else {
-        let change = (Math.random() * 2 * maxDiff - maxDiff); 
+        let change = (Math.random()*2*maxDiff - maxDiff);
         pipeY = lastPipeY + change;
     }
 
@@ -104,14 +107,12 @@ function createPipe() {
 
     lastPipeY = pipeY;
 
-    // العمود العلوي
-    pipes.push({ x: displayWidth, y: 0, width: 20, height: pipeY });
-    // العمود السفلي → نبدأ من pipeY + gap ونغطي الأسفل بالكامل
+    pipes.push({ x: displayWidth, y: 0, width: 20, height: pipeY, scored:false });
     pipes.push({ x: displayWidth, y: pipeY + gap, width: 20, height: displayHeight - (pipeY + gap) });
 }
 
-// تصادم حسب hitbox
-function collision(pipe) {
+// تصادم
+function collision(pipe){
     let hb = bird.hitbox;
     return (bird.x + (bird.width - hb.w)/2) < pipe.x + pipe.width &&
            (bird.x + (bird.width - hb.w)/2 + hb.w) > pipe.x &&
@@ -119,24 +120,29 @@ function collision(pipe) {
            (bird.y + (bird.height - hb.h)/2 + hb.h) > pipe.y;
 }
 
-function update() {
+function update(){
     if(!isGameOver){
         bird.velocity += bird.gravity;
         bird.y += bird.velocity;
 
-        if (bird.y > displayHeight || bird.y < 0) { isGameOver = true; }
+        if(bird.y + bird.height/2 >= displayHeight || bird.y - bird.height/2 <= 0) isGameOver = true;
 
         frame++;
         if(frame % 75 === 0) createPipe();
 
-        pipes.forEach((pipe, index) => {
+        pipes.forEach((pipe, index)=>{
             pipe.x -= 3.2; 
             if(collision(pipe)) isGameOver = true;
-            if(pipe.x + pipe.width < 0) pipes.splice(index,1);
-        });
 
-        // زيادة النقاط عند مرور العمود العلوي فقط
-        pipes.forEach(pipe => { if(pipe.x + pipe.width < bird.x && pipe.height < displayHeight/2 && !pipe.scored){ pipe.scored = true; score++; } });
+            // إزالة الأعمدة بعد الخروج من الشاشة
+            if(pipe.x + pipe.width < 0) pipes.splice(index,1);
+
+            // نقاط فقط عند مرور العمود العلوي
+            if(!pipe.scored && pipe.y === 0 && bird.x > pipe.x + pipe.width){
+                score++;
+                pipe.scored = true;
+            }
+        });
     }
 
     // رسم الخلفية
@@ -164,7 +170,7 @@ function update() {
     }
 
     // رسم الأعمدة
-    pipes.forEach(pipe => { ctx.fillStyle='yellow'; ctx.fillRect(pipe.x, pipe.y, pipe.width, pipe.height); });
+    pipes.forEach(pipe => ctx.fillRect(pipe.x, pipe.y, pipe.width, pipe.height));
 
     // عرض النقاط
     ctx.fillStyle='yellow';
@@ -185,7 +191,7 @@ function update() {
         ctx.lineWidth = 4;
         ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
 
-        // صورة الطائر كبيرة أعلى المستطيل
+        // صورة الطائر أعلى المستطيل
         if(birdImage.complete){
             let birdSize = 100;
             ctx.drawImage(birdImage, displayWidth/2 - birdSize/2, rectY - birdSize/2, birdSize, birdSize);
@@ -218,17 +224,12 @@ function update() {
     }
 }
 
-function gameLoop(){
-    update();
-    requestAnimationFrame(gameLoop);
-}
-
+function gameLoop(){ update(); requestAnimationFrame(gameLoop); }
 gameLoop();
 
 // إعادة ضبط حجم الشاشة
-window.addEventListener('resize', ()=>{
-    location.reload();
-});
+window.addEventListener('resize', ()=>{ location.reload(); });
+
 </script>
 </body>
 </html>
