@@ -26,21 +26,18 @@
         const canvas = document.getElementById('flappyBirdCanvas');
         const ctx = canvas.getContext('2d');
 
-        // حجم العرض الطبيعي
-        const displayWidth = 320;
-        const displayHeight = 480;
+        // حجم الشاشة الكامل
+        const displayWidth = window.innerWidth;
+        const displayHeight = window.innerHeight;
 
         // دعم الشاشات عالية الدقة (Retina)
         const scale = window.devicePixelRatio || 1;
-
         canvas.width = displayWidth * scale;
         canvas.height = displayHeight * scale;
         canvas.style.width = displayWidth + "px";
         canvas.style.height = displayHeight + "px";
 
         ctx.scale(scale, scale);
-
-        // تحسين جودة الرسم
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
 
@@ -53,16 +50,17 @@
         let frame = 0;
 
         window.addEventListener('keydown', () => bird.velocity = bird.lift);
-
-        // منع الزوم في الآيفون + القفز
         window.addEventListener('touchstart', (e) => {
             e.preventDefault();
             bird.velocity = bird.lift;
         }, { passive: false });
 
         function createPipe() {
-            const pipeHeight = Math.random() * (canvas.height / 2);
-            const gap = 190; // فتحة أوسع للطائر الكبير
+            const minPipeHeight = 50; // الحد الأدنى للعمود العلوي
+            const gap = 150; // فتحة للطائر الكبير
+            const maxPipeHeight = displayHeight - gap - minPipeHeight;
+            const pipeHeight = minPipeHeight + Math.random() * (maxPipeHeight - minPipeHeight);
+
             pipes.push({ x: displayWidth, y: 0, width: 20, height: pipeHeight });
             pipes.push({ x: displayWidth, y: pipeHeight + gap, width: 20, height: displayHeight - pipeHeight - gap });
         }
@@ -88,7 +86,7 @@
             }
 
             pipes.forEach((pipe, index) => {
-                pipe.x -= 1.8; // سرعة أبطأ قليلاً لتسهيل اللعب
+                pipe.x -= 1.8; // سرعة الأعمدة متوازنة
 
                 if (collision(pipe)) {
                     resetGame();
@@ -102,7 +100,7 @@
 
             ctx.clearRect(0, 0, displayWidth, displayHeight);
 
-            // رسم الطائر بحجم واضح HD
+            // رسم الطائر بحجم HD
             if (birdImage.complete) {
                 ctx.save();
                 ctx.translate(bird.x + bird.width / 2, bird.y + bird.height / 2);
@@ -113,7 +111,7 @@
                 ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
             }
 
-            // رسم الأنابيب
+            // رسم الأعمدة
             pipes.forEach(pipe => {
                 ctx.fillStyle = 'green';
                 ctx.fillRect(pipe.x, pipe.y, pipe.width, pipe.height);
@@ -138,6 +136,11 @@
         }
 
         gameLoop();
+
+        // تحديث اللعبة تلقائيًا إذا تم تغيير حجم الشاشة
+        window.addEventListener('resize', () => {
+            location.reload(); // أسهل طريقة لضبط canvas على حجم جديد
+        });
     </script>
 </body>
 </html>
