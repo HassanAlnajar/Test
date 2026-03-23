@@ -222,6 +222,29 @@ function resetGame(){
     isGameOver = true;
 }
 
+// عند الضغط على الزر 🔁 لإعادة اللعب
+canvas.addEventListener('click', function(e){
+    if(isGameOver && gameOverButton){
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        const x = (e.clientX - rect.left) * scaleX / scale; // تعديل بسبب scale
+        const y = (e.clientY - rect.top) * scaleY / scale;
+
+        if(x >= gameOverButton.x && x <= gameOverButton.x + gameOverButton.w &&
+           y >= gameOverButton.y && y <= gameOverButton.y + gameOverButton.h){
+            // إعادة اللعبة بالكامل
+            score = 0;
+            bird.y = displayHeight/2;
+            bird.velocity = 0;
+            pipes = [];
+            lastPipeY = displayHeight/2 - 75;
+            isGameOver = false;
+        }
+    }
+});
+
 function gameLoop(){
     update();
     requestAnimationFrame(gameLoop);
