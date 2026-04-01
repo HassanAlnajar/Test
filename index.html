@@ -19,13 +19,26 @@
         touch-action: manipulation;
         display: block;
     }
+    #nameInput {
+        position: fixed;
+        top: -100px;
+        left: 0;
+        opacity: 0;
+        pointer-events: none;
+    }
 </style>
 </head>
 <body>
+<input id="nameInput" type="text" maxlength="20" placeholder="اكتب اسمك">
 <canvas id="flappyBirdCanvas"></canvas>
 <script>
+const BIN_ID = '69cd6191856a682189ee4684';
+const API_KEY = '$2a$10$zlkvotEqifPwgliMx8G73OPaims8GEeban89H7TvNaajcMIErAn0S';
+const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+
 const canvas = document.getElementById('flappyBirdCanvas');
 const ctx = canvas.getContext('2d');
+const nameInput = document.getElementById('nameInput');
 
 let displayWidth = window.innerWidth;
 let displayHeight = window.innerHeight;
@@ -40,7 +53,6 @@ ctx.imageSmoothingQuality = 'high';
 
 let bgImage = new Image();
 bgImage.src = 'CE20DCB8-55BF-4363-9A95-0CFD053150F7.jpeg';
-
 let birdImage = new Image();
 birdImage.src = 'C5B8E2ED-5DF8-4A76-B9C4-210F07E30949.jpeg';
 
@@ -50,27 +62,94 @@ let bird = {
     hitbox: { w: 40, h: 40 }
 };
 
-let isHolding = false;
-let holdStartTime = 0;
-let isBoosting = false;
-const HOLD_THRESHOLD = 200;
-const BOOST_FORCE = -1.3;
-const MAX_BOOST_VELOCITY = -11;
-
-// انتقال تدريجي للأبيض والأسود
-let bwProgress = 0; // 0 = ألوان طبيعية، 1 = أبيض وأسود كامل
-
-let trails = [];
-let waves = [];
-let pipes = [];
-let score = 0;
-let frame = 0;
+let isHolding = false, holdStartTime = 0, isBoosting = false;
+const HOLD_THRESHOLD = 200, BOOST_FORCE = -1.3, MAX_BOOST_VELOCITY = -11;
+let bwProgress = 0;
+let trails = [], waves = [], pipes = [];
+let score = 0, frame = 0;
 let lastPipeY = displayHeight / 2 - 75;
-let gameOver = false;
-let finalScore = 0;
+let gameOver = false, finalScore = 0;
 
-const btn = { x: 0, y: 0, w: 100, h: 55 };
+// نظام الأسماء
+let playerName = localStorage.getItem('flappy_player_name') || '';
+let isEnteringName = false;
+let leaderboard = [];
 
+const btn       = { x: 0, y: 0, w: 80, h: 55 };
+const nameBtn   = { x: 0, y: 0, w: 160, h: 55 };
+
+// ── تحميل Leaderboard ──
+async function loadLeaderboard() {
+    try {
+        const res = await fetch(BIN_URL + '/latest', {
+            headers: { 'X-Master-Key': API_KEY }
+        });
+        const data = await res.json();
+        leaderboard = data.record.scores || [];
+    } catch(e) {
+        leaderboard = [];
+    }
+}
+
+// ── حفظ نقطة جديدة ──
+async function saveScore(name, score) {
+    try {
+        // تحميل أحدث بيانات
+        const res = await fetch(BIN_URL + '/latest', {
+            headers: { 'X-Master-Key': API_KEY }
+        });
+        const data = await res.json();
+        let scores = data.record.scores || [];
+
+        // تحديث أو إضافة
+        const existing = scores.find(s => s.name === name);
+        if (existing) {
+            if (score > existing.score) existing.score = score;
+        } else {
+            scores.push({ name, score });
+        }
+
+        // ترتيب وأخذ أعلى 10
+        scores.sort((a, b) => b.score - a.score);
+        scores = scores.slice(0, 10);
+
+        // حفظ
+        await fetch(BIN_URL, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': API_KEY
+            },
+            body: JSON.stringify({ scores })
+        });
+
+        leaderboard = scores;
+    } catch(e) {}
+}
+
+// ── حدث الاسم ──
+nameInput.addEventListener('blur', () => {
+    const val = nameInput.value.trim();
+    if (val.length > 0) {
+        playerName = val;
+        localStorage.setItem('flappy_player_name', playerName);
+    }
+    isEnteringName = false;
+    nameInput.style.pointerEvents = 'none';
+});
+
+nameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') nameInput.blur();
+});
+
+function openNameInput() {
+    isEnteringName = true;
+    nameInput.style.pointerEvents = 'auto';
+    nameInput.value = playerName;
+    nameInput.focus();
+}
+
+// ── Waves ──
 function spawnWave(big = false) {
     waves.push({
         x: bird.x + bird.width / 2,
@@ -100,58 +179,58 @@ function drawWaves() {
     waves = waves.filter(w => w.radius < w.maxRadius);
 }
 
+// ── أحداث ──
 window.addEventListener('keydown', (e) => {
-    if (gameOver) return;
+    if (gameOver || isEnteringName) return;
     if (!isHolding) {
-        isHolding = true;
-        holdStartTime = Date.now();
-        bird.velocity = bird.lift;
-        spawnWave(false);
+        isHolding = true; holdStartTime = Date.now();
+        bird.velocity = bird.lift; spawnWave(false);
     }
 });
 window.addEventListener('keyup', () => { isHolding = false; isBoosting = false; });
 
 window.addEventListener('touchstart', (e) => {
     e.preventDefault();
-    if (gameOver) { handleRestart(e.touches[0].clientX, e.touches[0].clientY); return; }
-    isHolding = true;
-    holdStartTime = Date.now();
-    bird.velocity = bird.lift;
-    spawnWave(false);
-}, { passive: false });
-window.addEventListener('touchend', () => { isHolding = false; isBoosting = false; });
-
-canvas.addEventListener('mousedown', (e) => {
+    if (isEnteringName) return;
     if (gameOver) {
-        const rect = canvas.getBoundingClientRect();
-        handleRestart(e.clientX - rect.left, e.clientY - rect.top);
+        handleGameOverTouch(e.touches[0].clientX, e.touches[0].clientY);
         return;
     }
-    isHolding = true;
-    holdStartTime = Date.now();
-    bird.velocity = bird.lift;
-    spawnWave(false);
-});
-canvas.addEventListener('mouseup', () => { isHolding = false; isBoosting = false; });
+    isHolding = true; holdStartTime = Date.now();
+    bird.velocity = bird.lift; spawnWave(false);
+}, { passive: false });
+window.addEventListener('touchend', () => { if (!isEnteringName) { isHolding = false; isBoosting = false; } });
 
-function handleRestart(cx, cy) {
-    if (cx >= btn.x && cx <= btn.x + btn.w && cy >= btn.y && cy <= btn.y + btn.h) resetGame();
+canvas.addEventListener('mousedown', (e) => {
+    if (isEnteringName) return;
+    if (gameOver) {
+        const rect = canvas.getBoundingClientRect();
+        handleGameOverTouch(e.clientX - rect.left, e.clientY - rect.top);
+        return;
+    }
+    isHolding = true; holdStartTime = Date.now();
+    bird.velocity = bird.lift; spawnWave(false);
+});
+canvas.addEventListener('mouseup', () => { if (!isEnteringName) { isHolding = false; isBoosting = false; } });
+
+function handleGameOverTouch(cx, cy) {
+    // زر إعادة اللعب
+    if (cx >= btn.x && cx <= btn.x + btn.w && cy >= btn.y && cy <= btn.y + btn.h) {
+        resetGame(); return;
+    }
+    // زر الاسم
+    if (!playerName && cx >= nameBtn.x && cx <= nameBtn.x + nameBtn.w && cy >= nameBtn.y && cy <= nameBtn.y + nameBtn.h) {
+        openNameInput();
+    }
 }
 
+// ── Pipes ──
 function createPipe() {
-    const gap = 130;
-    const minY = 50;
-    const maxY = displayHeight - gap - 50;
-    const maxDiff = 300;
+    const gap = 130, minY = 50, maxY = displayHeight - gap - 50, maxDiff = 300;
     let pipeY;
-    if (Math.random() < 0.3) {
-        pipeY = Math.random() * (maxY - minY) + minY;
-    } else {
-        let change = (Math.random() * 2 * maxDiff - maxDiff);
-        pipeY = lastPipeY + change;
-    }
-    if (pipeY < minY) pipeY = minY;
-    if (pipeY > maxY) pipeY = maxY;
+    if (Math.random() < 0.3) pipeY = Math.random() * (maxY - minY) + minY;
+    else pipeY = lastPipeY + (Math.random() * 2 * maxDiff - maxDiff);
+    pipeY = Math.max(minY, Math.min(maxY, pipeY));
     lastPipeY = pipeY;
     pipes.push({ x: displayWidth, y: 0, width: 20, height: pipeY });
     pipes.push({ x: displayWidth, y: pipeY + gap, width: 20, height: displayHeight - pipeY - gap });
@@ -159,63 +238,46 @@ function createPipe() {
 
 function collision(pipe) {
     let hb = bird.hitbox;
-    let bLeft   = bird.x + (bird.width - hb.w) / 2;
-    let bRight  = bLeft + hb.w;
-    let bTop    = bird.y + (bird.height - hb.h) / 2;
-    let bBottom = bTop + hb.h;
+    let bLeft = bird.x + (bird.width - hb.w) / 2, bRight = bLeft + hb.w;
+    let bTop = bird.y + (bird.height - hb.h) / 2, bBottom = bTop + hb.h;
     if (bRight <= pipe.x || bLeft >= pipe.x + pipe.width) return false;
     if (pipe.y === 0 && bTop < pipe.height) return true;
     if (pipe.y > 0 && bBottom > pipe.y) return true;
     return false;
 }
 
-// رسم الخلفية مع تأثير الأبيض والأسود
+// ── رسم ──
 function drawBackground() {
-    // canvas مؤقت للخلفية
     const offscreen = document.createElement('canvas');
-    offscreen.width = canvas.width;
-    offscreen.height = canvas.height;
+    offscreen.width = canvas.width; offscreen.height = canvas.height;
     const offCtx = offscreen.getContext('2d');
     offCtx.scale(scale, scale);
-
     if (bgImage.complete && bgImage.naturalWidth > 0) {
         let ratio = Math.max(displayWidth / bgImage.width, displayHeight / bgImage.height);
-        let w = bgImage.width * ratio;
-        let h = bgImage.height * ratio;
-        let sx = (w - displayWidth) / 2 / ratio;
-        let sy = (h - displayHeight) / 2 / ratio;
+        let sx = (bgImage.width * ratio - displayWidth) / 2 / ratio;
+        let sy = (bgImage.height * ratio - displayHeight) / 2 / ratio;
         offCtx.drawImage(bgImage, sx, sy, displayWidth / ratio, displayHeight / ratio, 0, 0, displayWidth, displayHeight);
     } else {
         offCtx.fillStyle = '#70c5ce';
         offCtx.fillRect(0, 0, displayWidth, displayHeight);
     }
-
-    // تطبيق الأبيض والأسود بالـ bwProgress
     if (bwProgress > 0) {
         offCtx.globalCompositeOperation = 'saturation';
         offCtx.fillStyle = `rgba(128,128,128,${bwProgress})`;
         offCtx.fillRect(0, 0, displayWidth, displayHeight);
-        // تعتيم طفيف
         offCtx.globalCompositeOperation = 'source-over';
         offCtx.fillStyle = `rgba(0,0,0,${bwProgress * 0.15})`;
         offCtx.fillRect(0, 0, displayWidth, displayHeight);
     }
-
     ctx.drawImage(offscreen, 0, 0, canvas.width, canvas.height, 0, 0, displayWidth, displayHeight);
 }
 
-// رسم الأعمدة مع تأثير الأبيض والأسود
 function drawPipes() {
     pipes.forEach(pipe => {
-        if (bwProgress > 0) {
-            // لون الأعمدة يتحول تدريجياً من أصفر لرمادي
-            const r = Math.round(255 * (1 - bwProgress) + 180 * bwProgress);
-            const g = Math.round(255 * (1 - bwProgress) + 180 * bwProgress);
-            const b = Math.round(0  * (1 - bwProgress) + 180 * bwProgress);
-            ctx.fillStyle = `rgb(${r},${g},${b})`;
-        } else {
-            ctx.fillStyle = 'yellow';
-        }
+        const r = Math.round(255 * (1 - bwProgress) + 180 * bwProgress);
+        const g = Math.round(255 * (1 - bwProgress) + 180 * bwProgress);
+        const b = Math.round(0   * (1 - bwProgress) + 180 * bwProgress);
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
         ctx.shadowBlur = 0;
         ctx.fillRect(pipe.x, pipe.y, pipe.width, pipe.height);
     });
@@ -223,75 +285,60 @@ function drawPipes() {
 
 function updateBoost() {
     if (isHolding && !isBoosting && !gameOver) {
-        const holdDuration = Date.now() - holdStartTime;
-        if (holdDuration > HOLD_THRESHOLD) {
-            isBoosting = true;
-            spawnWave(true);
-            spawnWave(true);
+        if (Date.now() - holdStartTime > HOLD_THRESHOLD) {
+            isBoosting = true; spawnWave(true); spawnWave(true);
         }
     }
-
-    // تحديث bwProgress بشكل تدريجي
+    bwProgress = isBoosting ? Math.min(1, bwProgress + 0.05) : Math.max(0, bwProgress - 0.05);
     if (isBoosting) {
-        bwProgress = Math.min(1, bwProgress + 0.05);
-    } else {
-        bwProgress = Math.max(0, bwProgress - 0.05);
-    }
-
-    if (isBoosting) {
-        bird.velocity += BOOST_FORCE;
-        if (bird.velocity < MAX_BOOST_VELOCITY) bird.velocity = MAX_BOOST_VELOCITY;
-        if (frame % 2 === 0) {
-            trails.push({ x: bird.x, y: bird.y, width: bird.width, height: bird.height, alpha: 0.6, scale: 1.0 });
-        }
+        bird.velocity = Math.max(MAX_BOOST_VELOCITY, bird.velocity + BOOST_FORCE);
+        if (frame % 2 === 0) trails.push({ x: bird.x, y: bird.y, width: bird.width, height: bird.height, alpha: 0.6, scale: 1.0 });
         if (frame % 8 === 0) spawnWave(true);
     }
 }
 
 function drawTrails() {
-    trails.forEach((t) => {
+    trails.forEach(t => {
         ctx.save();
         ctx.globalAlpha = t.alpha;
-        ctx.shadowColor = '#00cfff';
-        ctx.shadowBlur = 18;
+        ctx.shadowColor = '#00cfff'; ctx.shadowBlur = 18;
         ctx.translate(t.x + t.width / 2, t.y + t.height / 2);
         ctx.scale(t.scale, t.scale);
-        if (birdImage.complete && birdImage.naturalWidth > 0) {
+        if (birdImage.complete && birdImage.naturalWidth > 0)
             ctx.drawImage(birdImage, -t.width / 2, -t.height / 2, t.width, t.height);
-        }
         ctx.restore();
-        t.alpha -= 0.06;
-        t.scale -= 0.03;
+        t.alpha -= 0.06; t.scale -= 0.03;
     });
     trails = trails.filter(t => t.alpha > 0);
 }
 
 function drawBoostGlow() {
     if (!isBoosting) return;
-    const cx = bird.x + bird.width / 2;
-    const cy = bird.y + bird.height / 2;
+    const cx = bird.x + bird.width / 2, cy = bird.y + bird.height / 2;
     const pulse = Math.sin(Date.now() / 80) * 5;
-    let gradient = ctx.createRadialGradient(cx, cy, 5, cx, cy, 40 + pulse);
-    gradient.addColorStop(0, 'rgba(0, 200, 255, 0.5)');
-    gradient.addColorStop(1, 'rgba(0, 200, 255, 0)');
-    ctx.save();
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(cx, cy, 40 + pulse, 0, Math.PI * 2);
-    ctx.fill();
+    let g = ctx.createRadialGradient(cx, cy, 5, cx, cy, 40 + pulse);
+    g.addColorStop(0, 'rgba(0,200,255,0.5)'); g.addColorStop(1, 'rgba(0,200,255,0)');
+    ctx.save(); ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(cx, cy, 40 + pulse, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
 }
 
+// ── قائمة الخسارة ──
 function drawGameOverScreen() {
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
     ctx.fillRect(0, 0, displayWidth, displayHeight);
-    const boxW = 260, boxH = 300;
+
+    const hasName = !!playerName;
+    const boxW = 280;
+    // إذا في leaderboard نكبّر الصندوق
+    const lbHeight = leaderboard.length > 0 ? 180 : 0;
+    const boxH = 310 + lbHeight;
     const boxX = displayWidth / 2 - boxW / 2;
-    const boxY = displayHeight / 2 - boxH / 2 + 30;
+    const boxY = displayHeight / 2 - boxH / 2 + (leaderboard.length > 0 ? 10 : 30);
     const radius = 22;
 
-    ctx.shadowColor = 'rgba(0,0,0,0.35)';
-    ctx.shadowBlur = 18;
+    // المستطيل الرئيسي
+    ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 18;
     ctx.fillStyle = '#fff8e7';
     ctx.beginPath();
     ctx.moveTo(boxX + radius, boxY);
@@ -307,12 +354,12 @@ function drawGameOverScreen() {
     ctx.fill();
     ctx.shadowBlur = 0;
 
+    // صورة اللاعب
     const imgSize = 90;
     const imgX = displayWidth / 2 - imgSize / 2;
     const imgY = boxY - imgSize / 2;
     ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.25)';
-    ctx.shadowBlur = 10;
+    ctx.shadowColor = 'rgba(0,0,0,0.25)'; ctx.shadowBlur = 10;
     ctx.fillStyle = '#ffe082';
     ctx.beginPath();
     ctx.arc(displayWidth / 2, imgY + imgSize / 2, imgSize / 2 + 6, 0, Math.PI * 2);
@@ -320,44 +367,80 @@ function drawGameOverScreen() {
     ctx.shadowBlur = 0;
     ctx.beginPath();
     ctx.arc(displayWidth / 2, imgY + imgSize / 2, imgSize / 2, 0, Math.PI * 2);
-    ctx.closePath();
     ctx.clip();
-    if (birdImage.complete && birdImage.naturalWidth > 0) {
+    if (birdImage.complete && birdImage.naturalWidth > 0)
         ctx.drawImage(birdImage, imgX, imgY, imgSize, imgSize);
-    } else {
-        ctx.fillStyle = 'yellow';
-        ctx.fillRect(imgX, imgY, imgSize, imgSize);
-    }
     ctx.restore();
 
-    ctx.fillStyle = '#c0392b';
-    ctx.font = 'bold 32px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('ايا فايج', displayWidth / 2, boxY + 90);
-    ctx.strokeStyle = '#f0d080';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(boxX + 30, boxY + 105);
-    ctx.lineTo(boxX + boxW - 30, boxY + 105);
-    ctx.stroke();
-    ctx.fillStyle = '#555';
-    ctx.font = '18px Arial';
-    ctx.fillText('النقاط', displayWidth / 2, boxY + 135);
-    ctx.fillStyle = '#e67e22';
-    ctx.font = 'bold 42px Arial';
-    ctx.fillText(finalScore, displayWidth / 2, boxY + 185);
+    // "ايا فايج"
+    ctx.fillStyle = '#c0392b'; ctx.font = 'bold 30px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('ايا فايج', displayWidth / 2, boxY + 85);
 
-    const btnW = 100, btnH = 55;
-    const btnX = displayWidth / 2 - btnW / 2;
-    const btnY = boxY + 215;
-    btn.x = btnX; btn.y = btnY; btn.w = btnW; btn.h = btnH;
-    ctx.fillStyle = '#27ae60';
+    // خط فاصل
+    ctx.strokeStyle = '#f0d080'; ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.roundRect(btnX, btnY, btnW, btnH, 14);
-    ctx.fill();
-    ctx.font = '32px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('🔁', displayWidth / 2, btnY + 40);
+    ctx.moveTo(boxX + 30, boxY + 98); ctx.lineTo(boxX + boxW - 30, boxY + 98);
+    ctx.stroke();
+
+    // النقاط
+    ctx.fillStyle = '#555'; ctx.font = '16px Arial';
+    ctx.fillText('النقاط', displayWidth / 2, boxY + 122);
+    ctx.fillStyle = '#e67e22'; ctx.font = 'bold 38px Arial';
+    ctx.fillText(finalScore, displayWidth / 2, boxY + 165);
+
+    // ── Leaderboard ──
+    if (leaderboard.length > 0) {
+        ctx.strokeStyle = '#f0d080'; ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(boxX + 30, boxY + 180); ctx.lineTo(boxX + boxW - 30, boxY + 180);
+        ctx.stroke();
+
+        ctx.fillStyle = '#888'; ctx.font = 'bold 13px Arial';
+        ctx.fillText('🏆 أفضل اللاعبين', displayWidth / 2, boxY + 198);
+
+        const top = leaderboard.slice(0, 5);
+        top.forEach((s, i) => {
+            const isMe = s.name === playerName;
+            ctx.fillStyle = isMe ? '#e67e22' : '#444';
+            ctx.font = isMe ? 'bold 13px Arial' : '13px Arial';
+            const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+            ctx.fillText(`${medals[i]} ${s.name}  —  ${s.score}`, displayWidth / 2, boxY + 216 + i * 22);
+        });
+    }
+
+    // ── الأزرار ──
+    const btnY = boxY + boxH - 65;
+    const gap = 12;
+
+    if (hasName) {
+        // زر واحد في المنتصف
+        btn.w = 90; btn.h = 50;
+        btn.x = displayWidth / 2 - btn.w / 2; btn.y = btnY;
+        ctx.fillStyle = '#27ae60';
+        ctx.beginPath(); ctx.roundRect(btn.x, btn.y, btn.w, btn.h, 14); ctx.fill();
+        ctx.font = '30px Arial'; ctx.textAlign = 'center';
+        ctx.fillText('🔁', displayWidth / 2, btnY + 36);
+    } else {
+        // زران
+        btn.w = 80; btn.h = 50;
+        nameBtn.w = 155; nameBtn.h = 50;
+        const totalW = btn.w + gap + nameBtn.w;
+        btn.x = displayWidth / 2 - totalW / 2; btn.y = btnY;
+        nameBtn.x = btn.x + btn.w + gap; nameBtn.y = btnY;
+
+        // زر إعادة اللعب
+        ctx.fillStyle = '#27ae60';
+        ctx.beginPath(); ctx.roundRect(btn.x, btn.y, btn.w, btn.h, 14); ctx.fill();
+        ctx.font = '28px Arial'; ctx.textAlign = 'center';
+        ctx.fillText('🔁', btn.x + btn.w / 2, btnY + 34);
+
+        // زر الاسم
+        ctx.fillStyle = '#3498db';
+        ctx.beginPath(); ctx.roundRect(nameBtn.x, nameBtn.y, nameBtn.w, nameBtn.h, 14); ctx.fill();
+        ctx.fillStyle = 'white'; ctx.font = 'bold 13px Arial';
+        ctx.fillText('اكتب اسمك هنا ✏️', nameBtn.x + nameBtn.w / 2, btnY + 32);
+    }
+
     ctx.textAlign = 'left';
 }
 
@@ -371,13 +454,12 @@ function update() {
             ctx.drawImage(birdImage, -bird.width / 2, -bird.height / 2, bird.width, bird.height);
             ctx.restore();
         }
-        pipes.forEach(pipe => { ctx.fillStyle = 'yellow'; ctx.fillRect(pipe.x, pipe.y, pipe.width, pipe.height); });
+        drawPipes();
         drawGameOverScreen();
         return;
     }
 
     updateBoost();
-
     bird.velocity += bird.gravity;
     bird.y += bird.velocity;
     if (bird.y > displayHeight || bird.y < 0) triggerGameOver();
@@ -385,26 +467,18 @@ function update() {
     frame++;
     if (frame % 75 === 0) createPipe();
 
-    pipes = pipes.filter((pipe) => {
+    pipes = pipes.filter(pipe => {
         pipe.x -= 3.2;
         if (collision(pipe)) triggerGameOver();
         if (pipe.x + pipe.width < 0) { score++; return false; }
         return true;
     });
 
-    // الأعمدة مع تأثير BW
     drawPipes();
-
-    // الموجات
     drawWaves();
-
-    // الآثار
     drawTrails();
-
-    // توهج البوست
     drawBoostGlow();
 
-    // الطائر (دائماً بالألوان الطبيعية)
     if (birdImage.complete && birdImage.naturalWidth > 0) {
         ctx.save();
         if (isBoosting) { ctx.shadowColor = '#00cfff'; ctx.shadowBlur = 20; }
@@ -416,64 +490,51 @@ function update() {
         ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
     }
 
-    // النقاط — تتحول للرمادي مع BW
-    const scoreColor = bwProgress > 0
-        ? `rgb(${Math.round(255 - 55 * bwProgress)}, ${Math.round(255 - 55 * bwProgress)}, ${Math.round(255 - 55 * bwProgress)})`
+    const sc = bwProgress > 0
+        ? `rgb(${Math.round(255 - 55*bwProgress)},${Math.round(255 - 55*bwProgress)},${Math.round(255 - 55*bwProgress)})`
         : 'yellow';
-    ctx.fillStyle = scoreColor;
-    ctx.shadowBlur = 0;
-    ctx.font = '20px Arial';
-    ctx.fillText('النقاط: ' + score, 10, 20);
+    ctx.fillStyle = sc; ctx.shadowBlur = 0;
+    ctx.font = '20px Arial'; ctx.fillText('النقاط: ' + score, 10, 20);
 
-    // شريط البوست
     if (isHolding && !isBoosting) {
-        const holdDuration = Date.now() - holdStartTime;
-        const progress = Math.min(holdDuration / HOLD_THRESHOLD, 1);
-        const barW = 60;
-        const barX = bird.x + bird.width / 2 - barW / 2;
-        const barY = bird.y - 18;
+        const progress = Math.min((Date.now() - holdStartTime) / HOLD_THRESHOLD, 1);
+        const barW = 60, barX = bird.x + bird.width / 2 - 30, barY = bird.y - 18;
         ctx.fillStyle = 'rgba(0,0,0,0.4)';
-        ctx.beginPath();
-        ctx.roundRect(barX, barY, barW, 8, 4);
-        ctx.fill();
+        ctx.beginPath(); ctx.roundRect(barX, barY, barW, 8, 4); ctx.fill();
         ctx.fillStyle = '#00cfff';
-        ctx.beginPath();
-        ctx.roundRect(barX, barY, barW * progress, 8, 4);
-        ctx.fill();
+        ctx.beginPath(); ctx.roundRect(barX, barY, barW * progress, 8, 4); ctx.fill();
     }
 }
 
-function triggerGameOver() {
+async function triggerGameOver() {
+    if (gameOver) return;
     finalScore = score;
     gameOver = true;
-    isHolding = false;
-    isBoosting = false;
-    trails = [];
-    waves = [];
-    bwProgress = 0;
+    isHolding = false; isBoosting = false;
+    trails = []; waves = []; bwProgress = 0;
+
+    // حفظ النقاط إذا عنده اسم
+    if (playerName) {
+        await saveScore(playerName, finalScore);
+    } else {
+        await loadLeaderboard();
+    }
 }
 
 function resetGame() {
-    bird.y = displayHeight / 2;
-    bird.velocity = 0;
-    pipes = [];
-    score = 0;
-    frame = 0;
+    bird.y = displayHeight / 2; bird.velocity = 0;
+    pipes = []; score = 0; frame = 0;
     lastPipeY = displayHeight / 2 - 75;
-    gameOver = false;
-    isHolding = false;
-    isBoosting = false;
-    trails = [];
-    waves = [];
-    bwProgress = 0;
+    gameOver = false; isHolding = false; isBoosting = false;
+    trails = []; waves = []; bwProgress = 0;
 }
 
-function gameLoop() {
-    update();
-    requestAnimationFrame(gameLoop);
-}
+function gameLoop() { update(); requestAnimationFrame(gameLoop); }
 
+// تحميل الـ leaderboard عند البداية
+loadLeaderboard();
 gameLoop();
+
 window.addEventListener('resize', () => { location.reload(); });
 </script>
 </body>
