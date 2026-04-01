@@ -88,23 +88,24 @@ function spawnWave(big = false) {
 
 function drawWaves() {
     waves.forEach(w => {
-        ctx.save();
+        const progress = w.radius / w.maxRadius;
+        
         ctx.beginPath();
         ctx.arc(w.x, w.y, w.radius, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(${w.color}, ${w.alpha})`;
         ctx.lineWidth = w.lineWidth;
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'transparent';
         ctx.stroke();
-        ctx.restore();
 
-        // تمدد وتلاشي
-        const progress = w.radius / w.maxRadius;
-        w.radius += big ? 4.5 : 3.5;
-        w.alpha = (1 - progress) * (w.alpha > 0.7 ? 0.7 : 0.5);
+        w.radius += w.maxRadius > 60 ? 4.5 : 3.5;
+        w.alpha = (1 - progress) * (w.maxRadius > 60 ? 0.7 : 0.5);
         w.lineWidth *= 0.97;
     });
 
     waves = waves.filter(w => w.radius < w.maxRadius);
 }
+
 
 // ── أحداث الكيبورد ──
 window.addEventListener('keydown', (e) => {
