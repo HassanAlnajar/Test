@@ -172,21 +172,20 @@ function drawBackground() {
 }
 
 function updateBoost() {
-    if (isHolding && !gameOver) {
+    if (isHolding && !isBoosting && !gameOver) {
         const holdDuration = Date.now() - holdStartTime;
         if (holdDuration > HOLD_THRESHOLD) {
             isBoosting = true;
         }
     }
 
+    // البوست يعمل فقط بعد اكتمال الشريط
     if (isBoosting) {
-        // طيران سلس مستمر لأعلى
         bird.velocity += BOOST_FORCE;
         if (bird.velocity < MAX_BOOST_VELOCITY) {
             bird.velocity = MAX_BOOST_VELOCITY;
         }
 
-        // أضف أثر كل 2 فريم
         if (frame % 2 === 0) {
             trails.push({
                 x: bird.x,
@@ -199,6 +198,7 @@ function updateBoost() {
         }
     }
 }
+
 
 function drawTrails() {
     trails.forEach((t, i) => {
