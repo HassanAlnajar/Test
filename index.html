@@ -69,16 +69,17 @@ let trails = [], waves = [], pipes = [];
 let score = 0, frame = 0;
 let lastPipeY = displayHeight / 2 - 75;
 let gameOver = false, finalScore = 0;
+let gameOverHandled = false; // منع التكرار
 
-// نظام الأسماء
 let playerName = localStorage.getItem('flappy_player_name') || '';
 let isEnteringName = false;
 let leaderboard = [];
+let leaderboardLoaded = false; // هل تم تحميل الـ leaderboard؟
 
-const btn       = { x: 0, y: 0, w: 80, h: 55 };
-const nameBtn   = { x: 0, y: 0, w: 160, h: 55 };
+const btn     = { x: 0, y: 0, w: 80,  h: 50 };
+const nameBtn = { x: 0, y: 0, w: 155, h: 50 };
 
-// ── تحميل Leaderboard ──
+// ── JSONBin ──
 async function loadLeaderboard() {
     try {
         const res = await fetch(BIN_URL + '/latest', {
@@ -89,31 +90,24 @@ async function loadLeaderboard() {
     } catch(e) {
         leaderboard = [];
     }
+    leaderboardLoaded = true;
 }
 
-// ── حفظ نقطة جديدة ──
 async function saveScore(name, score) {
     try {
-        // تحميل أحدث بيانات
         const res = await fetch(BIN_URL + '/latest', {
             headers: { 'X-Master-Key': API_KEY }
         });
         const data = await res.json();
         let scores = data.record.scores || [];
-
-        // تحديث أو إضافة
         const existing = scores.find(s => s.name === name);
         if (existing) {
             if (score > existing.score) existing.score = score;
         } else {
             scores.push({ name, score });
         }
-
-        // ترتيب وأخذ أعلى 10
         scores.sort((a, b) => b.score - a.score);
         scores = scores.slice(0, 10);
-
-        // حفظ
         await fetch(BIN_URL, {
             method: 'PUT',
             headers: {
@@ -122,17 +116,19 @@ async function saveScore(name, score) {
             },
             body: JSON.stringify({ scores })
         });
-
         leaderboard = scores;
     } catch(e) {}
+    leaderboardLoaded = true;
 }
 
-// ── حدث الاسم ──
+// ── اسم اللاعب ──
 nameInput.addEventListener('blur', () => {
     const val = nameInput.value.trim();
     if (val.length > 0) {
         playerName = val;
         localStorage.setItem('flappy_player_name', playerName);
+        // بعد تسجيل الاسم احفظ النقاط فوراً
+        if (gameOver) saveScore(playerName, finalScore);
     }
     isEnteringName = false;
     nameInput.style.pointerEvents = 'none';
@@ -145,7 +141,7 @@ nameInput.addEventListener('keydown', (e) => {
 function openNameInput() {
     isEnteringName = true;
     nameInput.style.pointerEvents = 'auto';
-    nameInput.value = playerName;
+    nameInput.value = '';
     nameInput.focus();
 }
 
@@ -181,13 +177,19 @@ function drawWaves() {
 
 // ── أحداث ──
 window.addEventListener('keydown', (e) => {
-    if (gameOver || isEnteringName) return;
+    if (isEnteringName) return;
+    if (gameOver) return;
     if (!isHolding) {
-        isHolding = true; holdStartTime = Date.now();
-        bird.velocity = bird.lift; spawnWave(false);
+        isHolding = true;
+        holdStartTime = Date.now();
+        bird.velocity = bird.lift;
+        spawnWave(false);
     }
 });
-window.addEventListener('keyup', () => { isHolding = false; isBoosting = false; });
+window.addEventListener('keyup', () => {
+    isHolding = false;
+    isBoosting = false;
+});
 
 window.addEventListener('touchstart', (e) => {
     e.preventDefault();
@@ -196,10 +198,15 @@ window.addEventListener('touchstart', (e) => {
         handleGameOverTouch(e.touches[0].clientX, e.touches[0].clientY);
         return;
     }
-    isHolding = true; holdStartTime = Date.now();
-    bird.velocity = bird.lift; spawnWave(false);
+    isHolding = true;
+    holdStartTime = Date.now();
+    bird.velocity = bird.lift;
+    spawnWave(false);
 }, { passive: false });
-window.addEventListener('touchend', () => { if (!isEnteringName) { isHolding = false; isBoosting = false; } });
+
+window.addEventListener('touchend', () => {
+    if (!isEnteringName) { isHolding = false; isBoosting = false; }
+});
 
 canvas.addEventListener('mousedown', (e) => {
     if (isEnteringName) return;
@@ -208,26 +215,29 @@ canvas.addEventListener('mousedown', (e) => {
         handleGameOverTouch(e.clientX - rect.left, e.clientY - rect.top);
         return;
     }
-    isHolding = true; holdStartTime = Date.now();
-    bird.velocity = bird.lift; spawnWave(false);
+    isHolding = true;
+    holdStartTime = Date.now();
+    bird.velocity = bird.lift;
+    spawnWave(false);
 });
-canvas.addEventListener('mouseup', () => { if (!isEnteringName) { isHolding = false; isBoosting = false; } });
+canvas.addEventListener('mouseup', () => {
+    if (!isEnteringName) { isHolding = false; isBoosting = false; }
+});
 
 function handleGameOverTouch(cx, cy) {
-    // زر إعادة اللعب — يشتغل دائماً بغض النظر عن الاسم
+    // ✅ زر إعادة اللعب يعمل دائماً بدون أي شرط
     if (cx >= btn.x && cx <= btn.x + btn.w &&
         cy >= btn.y && cy <= btn.y + btn.h) {
         resetGame();
         return;
     }
-    // زر الاسم — فقط إذا ما سجّل بعد
+    // زر الاسم فقط إذا لم يسجل بعد
     if (!playerName &&
         cx >= nameBtn.x && cx <= nameBtn.x + nameBtn.w &&
         cy >= nameBtn.y && cy <= nameBtn.y + nameBtn.h) {
         openNameInput();
     }
 }
-
 
 // ── Pipes ──
 function createPipe() {
@@ -244,17 +254,18 @@ function createPipe() {
 function collision(pipe) {
     let hb = bird.hitbox;
     let bLeft = bird.x + (bird.width - hb.w) / 2, bRight = bLeft + hb.w;
-    let bTop = bird.y + (bird.height - hb.h) / 2, bBottom = bTop + hb.h;
+    let bTop  = bird.y + (bird.height - hb.h) / 2, bBottom = bTop + hb.h;
     if (bRight <= pipe.x || bLeft >= pipe.x + pipe.width) return false;
     if (pipe.y === 0 && bTop < pipe.height) return true;
-    if (pipe.y > 0 && bBottom > pipe.y) return true;
+    if (pipe.y > 0  && bBottom > pipe.y)   return true;
     return false;
 }
 
 // ── رسم ──
 function drawBackground() {
     const offscreen = document.createElement('canvas');
-    offscreen.width = canvas.width; offscreen.height = canvas.height;
+    offscreen.width = canvas.width;
+    offscreen.height = canvas.height;
     const offCtx = offscreen.getContext('2d');
     offCtx.scale(scale, scale);
     if (bgImage.complete && bgImage.naturalWidth > 0) {
@@ -281,7 +292,7 @@ function drawPipes() {
     pipes.forEach(pipe => {
         const r = Math.round(255 * (1 - bwProgress) + 180 * bwProgress);
         const g = Math.round(255 * (1 - bwProgress) + 180 * bwProgress);
-        const b = Math.round(0   * (1 - bwProgress) + 180 * bwProgress);
+        const b = Math.round(180 * bwProgress);
         ctx.fillStyle = `rgb(${r},${g},${b})`;
         ctx.shadowBlur = 0;
         ctx.fillRect(pipe.x, pipe.y, pipe.width, pipe.height);
@@ -291,10 +302,13 @@ function drawPipes() {
 function updateBoost() {
     if (isHolding && !isBoosting && !gameOver) {
         if (Date.now() - holdStartTime > HOLD_THRESHOLD) {
-            isBoosting = true; spawnWave(true); spawnWave(true);
+            isBoosting = true;
+            spawnWave(true); spawnWave(true);
         }
     }
-    bwProgress = isBoosting ? Math.min(1, bwProgress + 0.05) : Math.max(0, bwProgress - 0.05);
+    bwProgress = isBoosting
+        ? Math.min(1, bwProgress + 0.05)
+        : Math.max(0, bwProgress - 0.05);
     if (isBoosting) {
         bird.velocity = Math.max(MAX_BOOST_VELOCITY, bird.velocity + BOOST_FORCE);
         if (frame % 2 === 0) trails.push({ x: bird.x, y: bird.y, width: bird.width, height: bird.height, alpha: 0.6, scale: 1.0 });
@@ -322,7 +336,8 @@ function drawBoostGlow() {
     const cx = bird.x + bird.width / 2, cy = bird.y + bird.height / 2;
     const pulse = Math.sin(Date.now() / 80) * 5;
     let g = ctx.createRadialGradient(cx, cy, 5, cx, cy, 40 + pulse);
-    g.addColorStop(0, 'rgba(0,200,255,0.5)'); g.addColorStop(1, 'rgba(0,200,255,0)');
+    g.addColorStop(0, 'rgba(0,200,255,0.5)');
+    g.addColorStop(1, 'rgba(0,200,255,0)');
     ctx.save(); ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(cx, cy, 40 + pulse, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
@@ -333,16 +348,15 @@ function drawGameOverScreen() {
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
     ctx.fillRect(0, 0, displayWidth, displayHeight);
 
-    const hasName = !!playerName;
-    const boxW = 280;
-    // إذا في leaderboard نكبّر الصندوق
-    const lbHeight = leaderboard.length > 0 ? 180 : 0;
-    const boxH = 310 + lbHeight;
-    const boxX = displayWidth / 2 - boxW / 2;
-    const boxY = displayHeight / 2 - boxH / 2 + (leaderboard.length > 0 ? 10 : 30);
-    const radius = 22;
+    const hasName  = !!playerName;
+    const boxW     = 280;
+    const lbHeight = leaderboard.length > 0 ? 185 : 0;
+    const boxH     = 310 + lbHeight;
+    const boxX     = displayWidth / 2 - boxW / 2;
+    const boxY     = displayHeight / 2 - boxH / 2;
+    const radius   = 22;
 
-    // المستطيل الرئيسي
+    // المستطيل
     ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 18;
     ctx.fillStyle = '#fff8e7';
     ctx.beginPath();
@@ -377,34 +391,33 @@ function drawGameOverScreen() {
         ctx.drawImage(birdImage, imgX, imgY, imgSize, imgSize);
     ctx.restore();
 
-    // "ايا فايج"
+    // نص
     ctx.fillStyle = '#c0392b'; ctx.font = 'bold 30px Arial'; ctx.textAlign = 'center';
     ctx.fillText('ايا فايج', displayWidth / 2, boxY + 85);
 
-    // خط فاصل
     ctx.strokeStyle = '#f0d080'; ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(boxX + 30, boxY + 98); ctx.lineTo(boxX + boxW - 30, boxY + 98);
+    ctx.moveTo(boxX + 30, boxY + 98);
+    ctx.lineTo(boxX + boxW - 30, boxY + 98);
     ctx.stroke();
 
-    // النقاط
     ctx.fillStyle = '#555'; ctx.font = '16px Arial';
     ctx.fillText('النقاط', displayWidth / 2, boxY + 122);
     ctx.fillStyle = '#e67e22'; ctx.font = 'bold 38px Arial';
-    ctx.fillText(finalScore, displayWidth / 2, boxY + 165);
+    ctx.fillText(finalScore, displayWidth / 2, boxY + 162);
 
-    // ── Leaderboard ──
+    // Leaderboard
     if (leaderboard.length > 0) {
         ctx.strokeStyle = '#f0d080'; ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(boxX + 30, boxY + 180); ctx.lineTo(boxX + boxW - 30, boxY + 180);
+        ctx.moveTo(boxX + 30, boxY + 178);
+        ctx.lineTo(boxX + boxW - 30, boxY + 178);
         ctx.stroke();
 
         ctx.fillStyle = '#888'; ctx.font = 'bold 13px Arial';
-        ctx.fillText('🏆 أفضل اللاعبين', displayWidth / 2, boxY + 198);
+        ctx.fillText('🏆 أفضل اللاعبين', displayWidth / 2, boxY + 196);
 
-        const top = leaderboard.slice(0, 5);
-        top.forEach((s, i) => {
+        leaderboard.slice(0, 5).forEach((s, i) => {
             const isMe = s.name === playerName;
             ctx.fillStyle = isMe ? '#e67e22' : '#444';
             ctx.font = isMe ? 'bold 13px Arial' : '13px Arial';
@@ -414,36 +427,45 @@ function drawGameOverScreen() {
     }
 
     // ── الأزرار ──
-    const btnY = boxY + boxH - 65;
-    const gap = 12;
+    const btnAreaY = boxY + boxH - 62;
 
     if (hasName) {
-        // زر واحد في المنتصف
+        // زر واحد
         btn.w = 90; btn.h = 50;
-        btn.x = displayWidth / 2 - btn.w / 2; btn.y = btnY;
+        btn.x = displayWidth / 2 - 45;
+        btn.y = btnAreaY;
         ctx.fillStyle = '#27ae60';
         ctx.beginPath(); ctx.roundRect(btn.x, btn.y, btn.w, btn.h, 14); ctx.fill();
         ctx.font = '30px Arial'; ctx.textAlign = 'center';
-        ctx.fillText('🔁', displayWidth / 2, btnY + 36);
+        ctx.fillText('🔁', displayWidth / 2, btnAreaY + 36);
     } else {
         // زران
-        btn.w = 80; btn.h = 50;
-        nameBtn.w = 155; nameBtn.h = 50;
+        btn.w = 75; btn.h = 50;
+        nameBtn.w = 150; nameBtn.h = 50;
+        const gap = 10;
         const totalW = btn.w + gap + nameBtn.w;
-        btn.x = displayWidth / 2 - totalW / 2; btn.y = btnY;
-        nameBtn.x = btn.x + btn.w + gap; nameBtn.y = btnY;
+        btn.x     = displayWidth / 2 - totalW / 2;
+        btn.y     = btnAreaY;
+        nameBtn.x = btn.x + btn.w + gap;
+        nameBtn.y = btnAreaY;
 
-        // زر إعادة اللعب
+        // 🔁
         ctx.fillStyle = '#27ae60';
         ctx.beginPath(); ctx.roundRect(btn.x, btn.y, btn.w, btn.h, 14); ctx.fill();
         ctx.font = '28px Arial'; ctx.textAlign = 'center';
-        ctx.fillText('🔁', btn.x + btn.w / 2, btnY + 34);
+        ctx.fillText('🔁', btn.x + btn.w / 2, btnAreaY + 34);
 
-        // زر الاسم
+        // اكتب اسمك
         ctx.fillStyle = '#3498db';
         ctx.beginPath(); ctx.roundRect(nameBtn.x, nameBtn.y, nameBtn.w, nameBtn.h, 14); ctx.fill();
-        ctx.fillStyle = 'white'; ctx.font = 'bold 13px Arial';
-        ctx.fillText('اكتب اسمك هنا ✏️', nameBtn.x + nameBtn.w / 2, btnY + 32);
+        ctx.fillStyle = 'white'; ctx.font = 'bold 12px Arial';
+        ctx.fillText('اكتب اسمك هنا ✏️', nameBtn.x + nameBtn.w / 2, btnAreaY + 32);
+    }
+
+    // مؤشر تحميل
+    if (!leaderboardLoaded) {
+        ctx.fillStyle = '#aaa'; ctx.font = '12px Arial';
+        ctx.fillText('جاري التحميل...', displayWidth / 2, boxY + boxH - 70);
     }
 
     ctx.textAlign = 'left';
@@ -496,10 +518,11 @@ function update() {
     }
 
     const sc = bwProgress > 0
-        ? `rgb(${Math.round(255 - 55*bwProgress)},${Math.round(255 - 55*bwProgress)},${Math.round(255 - 55*bwProgress)})`
+        ? `rgb(${Math.round(255-55*bwProgress)},${Math.round(255-55*bwProgress)},${Math.round(255-55*bwProgress)})`
         : 'yellow';
     ctx.fillStyle = sc; ctx.shadowBlur = 0;
-    ctx.font = '20px Arial'; ctx.fillText('النقاط: ' + score, 10, 20);
+    ctx.font = '20px Arial';
+    ctx.fillText('النقاط: ' + score, 10, 20);
 
     if (isHolding && !isBoosting) {
         const progress = Math.min((Date.now() - holdStartTime) / HOLD_THRESHOLD, 1);
@@ -511,34 +534,35 @@ function update() {
     }
 }
 
-async function triggerGameOver() {
+// ✅ triggerGameOver — يحفظ فوراً ويحمّل الـ leaderboard
+function triggerGameOver() {
     if (gameOver) return;
     finalScore = score;
     gameOver = true;
     isHolding = false; isBoosting = false;
     trails = []; waves = []; bwProgress = 0;
+    leaderboardLoaded = false;
 
-    // دائماً حمّل الـ leaderboard أولاً
-    await loadLeaderboard();
-
-    // وإذا عنده اسم احفظ نقاطه فوراً
     if (playerName) {
-        await saveScore(playerName, finalScore);
+        // عنده اسم → احفظ النقاط مباشرة (saveScore تحمّل الـ leaderboard أيضاً)
+        saveScore(playerName, finalScore);
+    } else {
+        // ما عنده اسم → حمّل الـ leaderboard فقط للعرض
+        loadLeaderboard();
     }
 }
-
 
 function resetGame() {
     bird.y = displayHeight / 2; bird.velocity = 0;
     pipes = []; score = 0; frame = 0;
     lastPipeY = displayHeight / 2 - 75;
-    gameOver = false; isHolding = false; isBoosting = false;
+    gameOver = false;
+    isHolding = false; isBoosting = false;
     trails = []; waves = []; bwProgress = 0;
 }
 
 function gameLoop() { update(); requestAnimationFrame(gameLoop); }
 
-// تحميل الـ leaderboard عند البداية
 loadLeaderboard();
 gameLoop();
 
