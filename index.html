@@ -44,37 +44,77 @@ bgImage.src = 'CE20DCB8-55BF-4363-9A95-0CFD053150F7.jpeg';
 let birdImage = new Image();
 birdImage.src = 'C5B8E2ED-5DF8-4A76-B9C4-210F07E30949.jpeg';
 
-let bird = { x: 50, y: 150, width: 50, height: 50, gravity: 0.5, lift: -7, velocity: 0, hitbox: {w:40, h:40} };
+let bird = {
+    x: 50, y: 150, width: 50, height: 50,
+    gravity: 0.5, lift: -7, velocity: 0,
+    hitbox: { w: 40, h: 40 }
+};
+
+// نظام الـ Boost
+let isHolding = false;
+let holdStartTime = 0;
+let isBoosting = false;
+const HOLD_THRESHOLD = 300; // ms قبل تفعيل البوست
+const BOOST_FORCE = -0.6;   // قوة الطيران المستمر
+const MAX_BOOST_VELOCITY = -6; // حد أقصى للسرعة لأعلى
+
+// آثار الطائر
+let trails = [];
+
 let pipes = [];
 let score = 0;
 let frame = 0;
-let lastPipeY = displayHeight/2 - 75;
+let lastPipeY = displayHeight / 2 - 75;
 let gameOver = false;
 let finalScore = 0;
 
-// زر الإعادة
-const btn = {
-    x: 0, y: 0, w: 100, h: 55
-};
+const btn = { x: 0, y: 0, w: 100, h: 55 };
 
-window.addEventListener('keydown', () => {
-    if (!gameOver) bird.velocity = bird.lift;
+// ── أحداث الكيبورد ──
+window.addEventListener('keydown', (e) => {
+    if (gameOver) return;
+    if (!isHolding) {
+        isHolding = true;
+        holdStartTime = Date.now();
+        bird.velocity = bird.lift;
+    }
+});
+window.addEventListener('keyup', () => {
+    isHolding = false;
+    isBoosting = false;
 });
 
+// ── أحداث اللمس ──
 window.addEventListener('touchstart', (e) => {
     e.preventDefault();
     if (gameOver) {
         handleRestart(e.touches[0].clientX, e.touches[0].clientY);
-    } else {
-        bird.velocity = bird.lift;
+        return;
     }
+    isHolding = true;
+    holdStartTime = Date.now();
+    bird.velocity = bird.lift;
 }, { passive: false });
 
-canvas.addEventListener('click', (e) => {
+window.addEventListener('touchend', () => {
+    isHolding = false;
+    isBoosting = false;
+});
+
+// ── أحداث الماوس ──
+canvas.addEventListener('mousedown', (e) => {
     if (gameOver) {
         const rect = canvas.getBoundingClientRect();
         handleRestart(e.clientX - rect.left, e.clientY - rect.top);
+        return;
     }
+    isHolding = true;
+    holdStartTime = Date.now();
+    bird.velocity = bird.lift;
+});
+canvas.addEventListener('mouseup', () => {
+    isHolding = false;
+    isBoosting = false;
 });
 
 function handleRestart(cx, cy) {
@@ -131,8 +171,83 @@ function drawBackground() {
     }
 }
 
+function updateBoost() {
+    if (isHolding && !gameOver) {
+        const holdDuration = Date.now() - holdStartTime;
+        if (holdDuration > HOLD_THRESHOLD) {
+            isBoosting = true;
+        }
+    }
+
+    if (isBoosting) {
+        // طيران سلس مستمر لأعلى
+        bird.velocity += BOOST_FORCE;
+        if (bird.velocity < MAX_BOOST_VELOCITY) {
+            bird.velocity = MAX_BOOST_VELOCITY;
+        }
+
+        // أضف أثر كل 2 فريم
+        if (frame % 2 === 0) {
+            trails.push({
+                x: bird.x,
+                y: bird.y,
+                width: bird.width,
+                height: bird.height,
+                alpha: 0.6,
+                scale: 1.0
+            });
+        }
+    }
+}
+
+function drawTrails() {
+    trails.forEach((t, i) => {
+        ctx.save();
+        ctx.globalAlpha = t.alpha;
+
+        // توهج خلف الأثر
+        ctx.shadowColor = '#00cfff';
+        ctx.shadowBlur = 18;
+
+        ctx.translate(t.x + t.width / 2, t.y + t.height / 2);
+        ctx.scale(t.scale, t.scale);
+
+        if (birdImage.complete && birdImage.naturalWidth > 0) {
+            ctx.drawImage(birdImage, -t.width / 2, -t.height / 2, t.width, t.height);
+        }
+
+        ctx.restore();
+
+        // تلاشي الأثر
+        t.alpha -= 0.06;
+        t.scale -= 0.03;
+    });
+
+    // احذف الآثار المختفية
+    trails = trails.filter(t => t.alpha > 0);
+}
+
+function drawBoostGlow() {
+    if (!isBoosting) return;
+
+    // توهج حول الطائر
+    const cx = bird.x + bird.width / 2;
+    const cy = bird.y + bird.height / 2;
+    const pulse = Math.sin(Date.now() / 80) * 5; // نبض
+
+    let gradient = ctx.createRadialGradient(cx, cy, 5, cx, cy, 40 + pulse);
+    gradient.addColorStop(0, 'rgba(0, 200, 255, 0.5)');
+    gradient.addColorStop(1, 'rgba(0, 200, 255, 0)');
+
+    ctx.save();
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 40 + pulse, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
 function drawGameOverScreen() {
-    // تعتيم الخلفية
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
     ctx.fillRect(0, 0, displayWidth, displayHeight);
 
@@ -142,11 +257,8 @@ function drawGameOverScreen() {
     const boxY = displayHeight / 2 - boxH / 2 + 30;
     const radius = 22;
 
-    // ظل المستطيل
     ctx.shadowColor = 'rgba(0,0,0,0.35)';
     ctx.shadowBlur = 18;
-
-    // المستطيل الرئيسي
     ctx.fillStyle = '#fff8e7';
     ctx.beginPath();
     ctx.moveTo(boxX + radius, boxY);
@@ -160,15 +272,12 @@ function drawGameOverScreen() {
     ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
     ctx.closePath();
     ctx.fill();
-
     ctx.shadowBlur = 0;
 
-    // صورة الطائر فوق المستطيل (متصلة به)
     const imgSize = 90;
     const imgX = displayWidth / 2 - imgSize / 2;
     const imgY = boxY - imgSize / 2;
 
-    // دائرة خلف الصورة
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.25)';
     ctx.shadowBlur = 10;
@@ -177,8 +286,6 @@ function drawGameOverScreen() {
     ctx.arc(displayWidth / 2, imgY + imgSize / 2, imgSize / 2 + 6, 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
-
-    // الصورة داخل دائرة
     ctx.beginPath();
     ctx.arc(displayWidth / 2, imgY + imgSize / 2, imgSize / 2, 0, Math.PI * 2);
     ctx.closePath();
@@ -191,13 +298,11 @@ function drawGameOverScreen() {
     }
     ctx.restore();
 
-    // نص "ايا فايج"
     ctx.fillStyle = '#c0392b';
     ctx.font = 'bold 32px Arial';
     ctx.textAlign = 'center';
     ctx.fillText('ايا فايج', displayWidth / 2, boxY + 90);
 
-    // خط فاصل
     ctx.strokeStyle = '#f0d080';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
@@ -205,7 +310,6 @@ function drawGameOverScreen() {
     ctx.lineTo(boxX + boxW - 30, boxY + 105);
     ctx.stroke();
 
-    // النقاط
     ctx.fillStyle = '#555';
     ctx.font = '18px Arial';
     ctx.fillText('النقاط', displayWidth / 2, boxY + 135);
@@ -214,12 +318,10 @@ function drawGameOverScreen() {
     ctx.font = 'bold 42px Arial';
     ctx.fillText(finalScore, displayWidth / 2, boxY + 185);
 
-    // زر الإعادة
     const btnW = 100;
     const btnH = 55;
     const btnX = displayWidth / 2 - btnW / 2;
     const btnY = boxY + 215;
-
     btn.x = btnX; btn.y = btnY; btn.w = btnW; btn.h = btnH;
 
     ctx.fillStyle = '#27ae60';
@@ -230,7 +332,6 @@ function drawGameOverScreen() {
     ctx.font = '32px Arial';
     ctx.textAlign = 'center';
     ctx.fillText('🔁', displayWidth / 2, btnY + 40);
-
     ctx.textAlign = 'left';
 }
 
@@ -238,7 +339,6 @@ function update() {
     drawBackground();
 
     if (gameOver) {
-        // ارسم الطائر ثابتًا
         if (birdImage.complete && birdImage.naturalWidth > 0) {
             ctx.save();
             ctx.translate(bird.x + bird.width / 2, bird.y + bird.height / 2);
@@ -253,6 +353,9 @@ function update() {
         return;
     }
 
+    // تحديث الـ Boost
+    updateBoost();
+
     bird.velocity += bird.gravity;
     bird.y += bird.velocity;
 
@@ -261,38 +364,74 @@ function update() {
     frame++;
     if (frame % 75 === 0) createPipe();
 
-    pipes.forEach((pipe, index) => {
+    pipes = pipes.filter((pipe, index) => {
         pipe.x -= 3.2;
         if (collision(pipe)) triggerGameOver();
         if (pipe.x + pipe.width < 0) {
-            pipes.splice(index, 1);
             score++;
+            return false;
         }
+        return true;
     });
 
+    // رسم الآثار أولاً (خلف الطائر)
+    drawTrails();
+
+    // توهج البوست
+    drawBoostGlow();
+
+    // رسم الطائر
     if (birdImage.complete && birdImage.naturalWidth > 0) {
         ctx.save();
+        if (isBoosting) {
+            ctx.shadowColor = '#00cfff';
+            ctx.shadowBlur = 20;
+        }
         ctx.translate(bird.x + bird.width / 2, bird.y + bird.height / 2);
         ctx.drawImage(birdImage, -bird.width / 2, -bird.height / 2, bird.width, bird.height);
         ctx.restore();
     } else {
-        ctx.fillStyle = 'yellow';
+        ctx.fillStyle = isBoosting ? '#00cfff' : 'yellow';
         ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
     }
 
+    // رسم الأعمدة
     pipes.forEach(pipe => {
         ctx.fillStyle = 'yellow';
         ctx.fillRect(pipe.x, pipe.y, pipe.width, pipe.height);
     });
 
+    // النقاط
     ctx.fillStyle = 'yellow';
     ctx.font = '20px Arial';
     ctx.fillText('النقاط: ' + score, 10, 20);
+
+    // مؤشر البوست
+    if (isHolding && !isBoosting) {
+        const holdDuration = Date.now() - holdStartTime;
+        const progress = Math.min(holdDuration / HOLD_THRESHOLD, 1);
+        const barW = 60;
+        const barX = bird.x + bird.width / 2 - barW / 2;
+        const barY = bird.y - 18;
+
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath();
+        ctx.roundRect(barX, barY, barW, 8, 4);
+        ctx.fill();
+
+        ctx.fillStyle = '#00cfff';
+        ctx.beginPath();
+        ctx.roundRect(barX, barY, barW * progress, 8, 4);
+        ctx.fill();
+    }
 }
 
 function triggerGameOver() {
     finalScore = score;
     gameOver = true;
+    isHolding = false;
+    isBoosting = false;
+    trails = [];
 }
 
 function resetGame() {
@@ -303,6 +442,9 @@ function resetGame() {
     frame = 0;
     lastPipeY = displayHeight / 2 - 75;
     gameOver = false;
+    isHolding = false;
+    isBoosting = false;
+    trails = [];
 }
 
 function gameLoop() {
