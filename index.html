@@ -68,11 +68,6 @@ let score = 0, frame = 0;
 let lastPipeY = displayHeight / 2 - 75;
 let gameOver = false, finalScore = 0;
 
-// البوت
-let botActive = true; // البوت يعمل افتراضياً
-let humanOverride = false; // هل اللاعب يتدخل؟
-let humanOverrideTimer = 0;
-
 let playerName = localStorage.getItem('flappy_player_name') || '';
 let isEnteringName = false;
 let leaderboard = [];
@@ -81,12 +76,14 @@ let leaderboardLoaded = false;
 const btn     = { x: 0, y: 0, w: 80,  h: 50 };
 const nameBtn = { x: 0, y: 0, w: 155, h: 50 };
 
-// ── API ──
+// ── VPS API ──
 async function loadLeaderboard() {
     try {
         const res = await fetch(`${API_URL}/scores`);
         leaderboard = await res.json();
-    } catch(e) { leaderboard = []; }
+    } catch(e) {
+        leaderboard = [];
+    }
     leaderboardLoaded = true;
 }
 
@@ -113,7 +110,10 @@ nameInput.addEventListener('blur', () => {
     isEnteringName = false;
     nameInput.style.pointerEvents = 'none';
 });
-nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') nameInput.blur(); });
+
+nameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') nameInput.blur();
+});
 
 function openNameInput() {
     isEnteringName = true;
@@ -152,41 +152,29 @@ function drawWaves() {
     waves = waves.filter(w => w.radius < w.maxRadius);
 }
 
-// ── أحداث اللاعب ──
-function humanPress() {
-    if (gameOver || isEnteringName) return;
-    humanOverride = true;
-    humanOverrideTimer = 30; // 30 فريم تحكم بشري
+// ── أحداث ──
+window.addEventListener('keydown', (e) => {
+    if (isEnteringName) return;
+    if (gameOver) return;
     if (!isHolding) {
         isHolding = true;
         holdStartTime = Date.now();
         bird.velocity = bird.lift;
         spawnWave(false);
     }
-}
-
-function humanRelease() {
-    if (!isEnteringName) {
-        humanOverride = false;
-        isHolding = false;
-        isBoosting = false;
-    }
-}
-
-window.addEventListener('keydown', (e) => {
-    if (isEnteringName) return;
-    if (gameOver) return;
-    humanPress();
 });
-window.addEventListener('keyup', humanRelease);
+window.addEventListener('keyup', () => { isHolding = false; isBoosting = false; });
 
 window.addEventListener('touchstart', (e) => {
     e.preventDefault();
     if (isEnteringName) return;
     if (gameOver) { handleGameOverTouch(e.touches[0].clientX, e.touches[0].clientY); return; }
-    humanPress();
+    isHolding = true;
+    holdStartTime = Date.now();
+    bird.velocity = bird.lift;
+    spawnWave(false);
 }, { passive: false });
-window.addEventListener('touchend', humanRelease);
+window.addEventListener('touchend', () => { if (!isEnteringName) { isHolding = false; isBoosting = false; } });
 
 canvas.addEventListener('mousedown', (e) => {
     if (isEnteringName) return;
@@ -195,9 +183,12 @@ canvas.addEventListener('mousedown', (e) => {
         handleGameOverTouch(e.clientX - rect.left, e.clientY - rect.top);
         return;
     }
-    humanPress();
+    isHolding = true;
+    holdStartTime = Date.now();
+    bird.velocity = bird.lift;
+    spawnWave(false);
 });
-canvas.addEventListener('mouseup', humanRelease);
+canvas.addEventListener('mouseup', () => { if (!isEnteringName) { isHolding = false; isBoosting = false; } });
 
 function handleGameOverTouch(cx, cy) {
     if (cx >= btn.x && cx <= btn.x + btn.w &&
@@ -208,55 +199,6 @@ function handleGameOverTouch(cx, cy) {
         cx >= nameBtn.x && cx <= nameBtn.x + nameBtn.w &&
         cy >= nameBtn.y && cy <= nameBtn.y + nameBtn.h) {
         openNameInput();
-    }
-}
-
-// ── البوت ──
-function updateBot() {
-    if (gameOver || !botActive) return;
-
-    // إذا اللاعب يتحكم، البوت ينتظر
-    if (humanOverride) {
-        humanOverrideTimer--;
-        if (humanOverrideTimer <= 0) humanOverride = false;
-        return;
-    }
-
-    // إيجاد العمود القادم
-    const nextPipe = pipes.find(p => p.x + p.width > bird.x && p.y === 0);
-    if (!nextPipe) return;
-
-    const gapTop    = nextPipe.height;
-    const gapBottom = nextPipe.height + 130;
-    const gapCenter = (gapTop + gapBottom) / 2;
-    const birdCenter = bird.y + bird.height / 2;
-    const distanceToPipe = nextPipe.x - bird.x;
-
-    if (birdCenter > gapCenter - 15) {
-        // الطائر تحت المركز — يحتاج يقفز
-        const diff = birdCenter - gapCenter;
-
-        if (diff > 70 && distanceToPipe < 220) {
-            // بعيد جداً → استخدم البوست
-            if (!isHolding) {
-                isHolding = true;
-                holdStartTime = Date.now() - HOLD_THRESHOLD - 10;
-                bird.velocity = bird.lift;
-                spawnWave(false);
-            }
-        } else {
-            // قريب → قفزة عادية
-            if (!isHolding) {
-                isHolding = true;
-                holdStartTime = Date.now();
-                bird.velocity = bird.lift;
-                spawnWave(false);
-            }
-        }
-    } else {
-        // الطائر فوق المركز — أوقف
-        isHolding = false;
-        isBoosting = false;
     }
 }
 
@@ -465,19 +407,8 @@ function drawGameOverScreen() {
     ctx.textAlign = 'left';
 }
 
-// مؤشر البوت
-function drawBotIndicator() {
-    if (!botActive) return;
-    ctx.fillStyle = humanOverride ? 'rgba(255,200,0,0.8)' : 'rgba(0,255,150,0.8)';
-    ctx.font = 'bold 13px Arial';
-    ctx.textAlign = 'right';
-    ctx.fillText(humanOverride ? '👤 أنت' : '🤖 بوت', displayWidth - 10, 20);
-    ctx.textAlign = 'left';
-}
-
 function update() {
     drawBackground();
-
     if (gameOver) {
         if (birdImage.complete && birdImage.naturalWidth > 0) {
             ctx.save();
@@ -490,10 +421,7 @@ function update() {
         return;
     }
 
-    // البوت أولاً ثم الـ Boost
-    updateBot();
     updateBoost();
-
     bird.velocity += bird.gravity;
     bird.y += bird.velocity;
     if (bird.y > displayHeight || bird.y < 0) triggerGameOver();
@@ -531,9 +459,6 @@ function update() {
     ctx.font = '20px Arial';
     ctx.fillText('النقاط: ' + score, 10, 20);
 
-    // مؤشر البوت
-    drawBotIndicator();
-
     if (isHolding && !isBoosting) {
         const progress = Math.min((Date.now() - holdStartTime) / HOLD_THRESHOLD, 1);
         const barW = 60, barX = bird.x + bird.width / 2 - 30, barY = bird.y - 18;
@@ -565,7 +490,6 @@ function resetGame() {
     gameOver = false;
     isHolding = false; isBoosting = false;
     trails = []; waves = []; bwProgress = 0;
-    humanOverride = false; humanOverrideTimer = 0;
 }
 
 function gameLoop() { update(); requestAnimationFrame(gameLoop); }
