@@ -54,12 +54,15 @@ let bird = {
 let isHolding = false;
 let holdStartTime = 0;
 let isBoosting = false;
-const HOLD_THRESHOLD = 200; // ms قبل تفعيل البوست
-const BOOST_FORCE = -1.3;   // قوة الطيران المستمر
-const MAX_BOOST_VELOCITY = -11; // حد أقصى للسرعة لأعلى
+const HOLD_THRESHOLD = 200;
+const BOOST_FORCE = -1.3;
+const MAX_BOOST_VELOCITY = -11;
 
 // آثار الطائر
 let trails = [];
+
+// موجات الهواء
+let waves = [];
 
 let pipes = [];
 let score = 0;
@@ -70,6 +73,39 @@ let finalScore = 0;
 
 const btn = { x: 0, y: 0, w: 100, h: 55 };
 
+// ── موجة الهواء ──
+function spawnWave(big = false) {
+    waves.push({
+        x: bird.x + bird.width / 2,
+        y: bird.y + bird.height / 2,
+        radius: 5,
+        maxRadius: big ? 90 : 55,
+        alpha: big ? 0.7 : 0.5,
+        lineWidth: big ? 3 : 1.8,
+        color: big ? '0, 220, 255' : '180, 240, 255'
+    });
+}
+
+function drawWaves() {
+    waves.forEach(w => {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(w.x, w.y, w.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${w.color}, ${w.alpha})`;
+        ctx.lineWidth = w.lineWidth;
+        ctx.stroke();
+        ctx.restore();
+
+        // تمدد وتلاشي
+        const progress = w.radius / w.maxRadius;
+        w.radius += big ? 4.5 : 3.5;
+        w.alpha = (1 - progress) * (w.alpha > 0.7 ? 0.7 : 0.5);
+        w.lineWidth *= 0.97;
+    });
+
+    waves = waves.filter(w => w.radius < w.maxRadius);
+}
+
 // ── أحداث الكيبورد ──
 window.addEventListener('keydown', (e) => {
     if (gameOver) return;
@@ -77,6 +113,7 @@ window.addEventListener('keydown', (e) => {
         isHolding = true;
         holdStartTime = Date.now();
         bird.velocity = bird.lift;
+        spawnWave(false); // موجة عادية عند القفز
     }
 });
 window.addEventListener('keyup', () => {
@@ -94,6 +131,7 @@ window.addEventListener('touchstart', (e) => {
     isHolding = true;
     holdStartTime = Date.now();
     bird.velocity = bird.lift;
+    spawnWave(false); // موجة عادية عند القفز
 }, { passive: false });
 
 window.addEventListener('touchend', () => {
@@ -111,6 +149,7 @@ canvas.addEventListener('mousedown', (e) => {
     isHolding = true;
     holdStartTime = Date.now();
     bird.velocity = bird.lift;
+    spawnWave(false);
 });
 canvas.addEventListener('mouseup', () => {
     isHolding = false;
@@ -176,10 +215,12 @@ function updateBoost() {
         const holdDuration = Date.now() - holdStartTime;
         if (holdDuration > HOLD_THRESHOLD) {
             isBoosting = true;
+            // موجة كبيرة لحظة تفعيل البوست
+            spawnWave(true);
+            spawnWave(true);
         }
     }
 
-    // البوست يعمل فقط بعد اكتمال الشريط
     if (isBoosting) {
         bird.velocity += BOOST_FORCE;
         if (bird.velocity < MAX_BOOST_VELOCITY) {
@@ -196,49 +237,40 @@ function updateBoost() {
                 scale: 1.0
             });
         }
+
+        // موجات متتالية أثناء البوست
+        if (frame % 8 === 0) {
+            spawnWave(true);
+        }
     }
 }
 
-
 function drawTrails() {
-    trails.forEach((t, i) => {
+    trails.forEach((t) => {
         ctx.save();
         ctx.globalAlpha = t.alpha;
-
-        // توهج خلف الأثر
         ctx.shadowColor = '#00cfff';
         ctx.shadowBlur = 18;
-
         ctx.translate(t.x + t.width / 2, t.y + t.height / 2);
         ctx.scale(t.scale, t.scale);
-
         if (birdImage.complete && birdImage.naturalWidth > 0) {
             ctx.drawImage(birdImage, -t.width / 2, -t.height / 2, t.width, t.height);
         }
-
         ctx.restore();
-
-        // تلاشي الأثر
         t.alpha -= 0.06;
         t.scale -= 0.03;
     });
-
-    // احذف الآثار المختفية
     trails = trails.filter(t => t.alpha > 0);
 }
 
 function drawBoostGlow() {
     if (!isBoosting) return;
-
-    // توهج حول الطائر
     const cx = bird.x + bird.width / 2;
     const cy = bird.y + bird.height / 2;
-    const pulse = Math.sin(Date.now() / 80) * 5; // نبض
-
+    const pulse = Math.sin(Date.now() / 80) * 5;
     let gradient = ctx.createRadialGradient(cx, cy, 5, cx, cy, 40 + pulse);
     gradient.addColorStop(0, 'rgba(0, 200, 255, 0.5)');
     gradient.addColorStop(1, 'rgba(0, 200, 255, 0)');
-
     ctx.save();
     ctx.fillStyle = gradient;
     ctx.beginPath();
@@ -353,7 +385,6 @@ function update() {
         return;
     }
 
-    // تحديث الـ Boost
     updateBoost();
 
     bird.velocity += bird.gravity;
@@ -364,7 +395,7 @@ function update() {
     frame++;
     if (frame % 75 === 0) createPipe();
 
-    pipes = pipes.filter((pipe, index) => {
+    pipes = pipes.filter((pipe) => {
         pipe.x -= 3.2;
         if (collision(pipe)) triggerGameOver();
         if (pipe.x + pipe.width < 0) {
@@ -374,13 +405,16 @@ function update() {
         return true;
     });
 
-    // رسم الآثار أولاً (خلف الطائر)
+    // الموجات (خلف كل شيء)
+    drawWaves();
+
+    // الآثار
     drawTrails();
 
     // توهج البوست
     drawBoostGlow();
 
-    // رسم الطائر
+    // الطائر
     if (birdImage.complete && birdImage.naturalWidth > 0) {
         ctx.save();
         if (isBoosting) {
@@ -395,7 +429,7 @@ function update() {
         ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
     }
 
-    // رسم الأعمدة
+    // الأعمدة
     pipes.forEach(pipe => {
         ctx.fillStyle = 'yellow';
         ctx.fillRect(pipe.x, pipe.y, pipe.width, pipe.height);
@@ -406,7 +440,7 @@ function update() {
     ctx.font = '20px Arial';
     ctx.fillText('النقاط: ' + score, 10, 20);
 
-    // مؤشر البوست
+    // شريط البوست
     if (isHolding && !isBoosting) {
         const holdDuration = Date.now() - holdStartTime;
         const progress = Math.min(holdDuration / HOLD_THRESHOLD, 1);
@@ -432,6 +466,7 @@ function triggerGameOver() {
     isHolding = false;
     isBoosting = false;
     trails = [];
+    waves = [];
 }
 
 function resetGame() {
@@ -445,6 +480,7 @@ function resetGame() {
     isHolding = false;
     isBoosting = false;
     trails = [];
+    waves = [];
 }
 
 function gameLoop() {
