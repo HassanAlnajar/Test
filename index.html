@@ -214,15 +214,20 @@ canvas.addEventListener('mousedown', (e) => {
 canvas.addEventListener('mouseup', () => { if (!isEnteringName) { isHolding = false; isBoosting = false; } });
 
 function handleGameOverTouch(cx, cy) {
-    // زر إعادة اللعب
-    if (cx >= btn.x && cx <= btn.x + btn.w && cy >= btn.y && cy <= btn.y + btn.h) {
-        resetGame(); return;
+    // زر إعادة اللعب — يشتغل دائماً بغض النظر عن الاسم
+    if (cx >= btn.x && cx <= btn.x + btn.w &&
+        cy >= btn.y && cy <= btn.y + btn.h) {
+        resetGame();
+        return;
     }
-    // زر الاسم
-    if (!playerName && cx >= nameBtn.x && cx <= nameBtn.x + nameBtn.w && cy >= nameBtn.y && cy <= nameBtn.y + nameBtn.h) {
+    // زر الاسم — فقط إذا ما سجّل بعد
+    if (!playerName &&
+        cx >= nameBtn.x && cx <= nameBtn.x + nameBtn.w &&
+        cy >= nameBtn.y && cy <= nameBtn.y + nameBtn.h) {
         openNameInput();
     }
 }
+
 
 // ── Pipes ──
 function createPipe() {
@@ -513,13 +518,15 @@ async function triggerGameOver() {
     isHolding = false; isBoosting = false;
     trails = []; waves = []; bwProgress = 0;
 
-    // حفظ النقاط إذا عنده اسم
+    // دائماً حمّل الـ leaderboard أولاً
+    await loadLeaderboard();
+
+    // وإذا عنده اسم احفظ نقاطه فوراً
     if (playerName) {
         await saveScore(playerName, finalScore);
-    } else {
-        await loadLeaderboard();
     }
 }
+
 
 function resetGame() {
     bird.y = displayHeight / 2; bird.velocity = 0;
