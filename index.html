@@ -50,7 +50,6 @@ let bird = {
     hitbox: { w: 40, h: 40 }
 };
 
-// نظام الـ Boost
 let isHolding = false;
 let holdStartTime = 0;
 let isBoosting = false;
@@ -58,12 +57,11 @@ const HOLD_THRESHOLD = 200;
 const BOOST_FORCE = -1.3;
 const MAX_BOOST_VELOCITY = -11;
 
-// آثار الطائر
+// انتقال تدريجي للأبيض والأسود
+let bwProgress = 0; // 0 = ألوان طبيعية، 1 = أبيض وأسود كامل
+
 let trails = [];
-
-// موجات الهواء
 let waves = [];
-
 let pipes = [];
 let score = 0;
 let frame = 0;
@@ -73,7 +71,6 @@ let finalScore = 0;
 
 const btn = { x: 0, y: 0, w: 100, h: 55 };
 
-// ── موجة الهواء ──
 function spawnWave(big = false) {
     waves.push({
         x: bird.x + bird.width / 2,
@@ -89,7 +86,6 @@ function spawnWave(big = false) {
 function drawWaves() {
     waves.forEach(w => {
         const progress = w.radius / w.maxRadius;
-        
         ctx.beginPath();
         ctx.arc(w.x, w.y, w.radius, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(${w.color}, ${w.alpha})`;
@@ -97,50 +93,34 @@ function drawWaves() {
         ctx.shadowBlur = 0;
         ctx.shadowColor = 'transparent';
         ctx.stroke();
-
         w.radius += w.maxRadius > 60 ? 4.5 : 3.5;
         w.alpha = (1 - progress) * (w.maxRadius > 60 ? 0.7 : 0.5);
         w.lineWidth *= 0.97;
     });
-
     waves = waves.filter(w => w.radius < w.maxRadius);
 }
 
-
-// ── أحداث الكيبورد ──
 window.addEventListener('keydown', (e) => {
     if (gameOver) return;
     if (!isHolding) {
         isHolding = true;
         holdStartTime = Date.now();
         bird.velocity = bird.lift;
-        spawnWave(false); // موجة عادية عند القفز
+        spawnWave(false);
     }
 });
-window.addEventListener('keyup', () => {
-    isHolding = false;
-    isBoosting = false;
-});
+window.addEventListener('keyup', () => { isHolding = false; isBoosting = false; });
 
-// ── أحداث اللمس ──
 window.addEventListener('touchstart', (e) => {
     e.preventDefault();
-    if (gameOver) {
-        handleRestart(e.touches[0].clientX, e.touches[0].clientY);
-        return;
-    }
+    if (gameOver) { handleRestart(e.touches[0].clientX, e.touches[0].clientY); return; }
     isHolding = true;
     holdStartTime = Date.now();
     bird.velocity = bird.lift;
-    spawnWave(false); // موجة عادية عند القفز
+    spawnWave(false);
 }, { passive: false });
+window.addEventListener('touchend', () => { isHolding = false; isBoosting = false; });
 
-window.addEventListener('touchend', () => {
-    isHolding = false;
-    isBoosting = false;
-});
-
-// ── أحداث الماوس ──
 canvas.addEventListener('mousedown', (e) => {
     if (gameOver) {
         const rect = canvas.getBoundingClientRect();
@@ -152,16 +132,10 @@ canvas.addEventListener('mousedown', (e) => {
     bird.velocity = bird.lift;
     spawnWave(false);
 });
-canvas.addEventListener('mouseup', () => {
-    isHolding = false;
-    isBoosting = false;
-});
+canvas.addEventListener('mouseup', () => { isHolding = false; isBoosting = false; });
 
 function handleRestart(cx, cy) {
-    if (cx >= btn.x && cx <= btn.x + btn.w &&
-        cy >= btn.y && cy <= btn.y + btn.h) {
-        resetGame();
-    }
+    if (cx >= btn.x && cx <= btn.x + btn.w && cy >= btn.y && cy <= btn.y + btn.h) resetGame();
 }
 
 function createPipe() {
@@ -189,26 +163,62 @@ function collision(pipe) {
     let bRight  = bLeft + hb.w;
     let bTop    = bird.y + (bird.height - hb.h) / 2;
     let bBottom = bTop + hb.h;
-    let pLeft  = pipe.x;
-    let pRight = pipe.x + pipe.width;
-    if (bRight <= pLeft || bLeft >= pRight) return false;
+    if (bRight <= pipe.x || bLeft >= pipe.x + pipe.width) return false;
     if (pipe.y === 0 && bTop < pipe.height) return true;
     if (pipe.y > 0 && bBottom > pipe.y) return true;
     return false;
 }
 
+// رسم الخلفية مع تأثير الأبيض والأسود
 function drawBackground() {
+    // canvas مؤقت للخلفية
+    const offscreen = document.createElement('canvas');
+    offscreen.width = canvas.width;
+    offscreen.height = canvas.height;
+    const offCtx = offscreen.getContext('2d');
+    offCtx.scale(scale, scale);
+
     if (bgImage.complete && bgImage.naturalWidth > 0) {
         let ratio = Math.max(displayWidth / bgImage.width, displayHeight / bgImage.height);
         let w = bgImage.width * ratio;
         let h = bgImage.height * ratio;
         let sx = (w - displayWidth) / 2 / ratio;
         let sy = (h - displayHeight) / 2 / ratio;
-        ctx.drawImage(bgImage, sx, sy, displayWidth / ratio, displayHeight / ratio, 0, 0, displayWidth, displayHeight);
+        offCtx.drawImage(bgImage, sx, sy, displayWidth / ratio, displayHeight / ratio, 0, 0, displayWidth, displayHeight);
     } else {
-        ctx.fillStyle = '#70c5ce';
-        ctx.fillRect(0, 0, displayWidth, displayHeight);
+        offCtx.fillStyle = '#70c5ce';
+        offCtx.fillRect(0, 0, displayWidth, displayHeight);
     }
+
+    // تطبيق الأبيض والأسود بالـ bwProgress
+    if (bwProgress > 0) {
+        offCtx.globalCompositeOperation = 'saturation';
+        offCtx.fillStyle = `rgba(128,128,128,${bwProgress})`;
+        offCtx.fillRect(0, 0, displayWidth, displayHeight);
+        // تعتيم طفيف
+        offCtx.globalCompositeOperation = 'source-over';
+        offCtx.fillStyle = `rgba(0,0,0,${bwProgress * 0.15})`;
+        offCtx.fillRect(0, 0, displayWidth, displayHeight);
+    }
+
+    ctx.drawImage(offscreen, 0, 0, canvas.width, canvas.height, 0, 0, displayWidth, displayHeight);
+}
+
+// رسم الأعمدة مع تأثير الأبيض والأسود
+function drawPipes() {
+    pipes.forEach(pipe => {
+        if (bwProgress > 0) {
+            // لون الأعمدة يتحول تدريجياً من أصفر لرمادي
+            const r = Math.round(255 * (1 - bwProgress) + 180 * bwProgress);
+            const g = Math.round(255 * (1 - bwProgress) + 180 * bwProgress);
+            const b = Math.round(0  * (1 - bwProgress) + 180 * bwProgress);
+            ctx.fillStyle = `rgb(${r},${g},${b})`;
+        } else {
+            ctx.fillStyle = 'yellow';
+        }
+        ctx.shadowBlur = 0;
+        ctx.fillRect(pipe.x, pipe.y, pipe.width, pipe.height);
+    });
 }
 
 function updateBoost() {
@@ -216,33 +226,25 @@ function updateBoost() {
         const holdDuration = Date.now() - holdStartTime;
         if (holdDuration > HOLD_THRESHOLD) {
             isBoosting = true;
-            // موجة كبيرة لحظة تفعيل البوست
             spawnWave(true);
             spawnWave(true);
         }
     }
 
+    // تحديث bwProgress بشكل تدريجي
+    if (isBoosting) {
+        bwProgress = Math.min(1, bwProgress + 0.05);
+    } else {
+        bwProgress = Math.max(0, bwProgress - 0.05);
+    }
+
     if (isBoosting) {
         bird.velocity += BOOST_FORCE;
-        if (bird.velocity < MAX_BOOST_VELOCITY) {
-            bird.velocity = MAX_BOOST_VELOCITY;
-        }
-
+        if (bird.velocity < MAX_BOOST_VELOCITY) bird.velocity = MAX_BOOST_VELOCITY;
         if (frame % 2 === 0) {
-            trails.push({
-                x: bird.x,
-                y: bird.y,
-                width: bird.width,
-                height: bird.height,
-                alpha: 0.6,
-                scale: 1.0
-            });
+            trails.push({ x: bird.x, y: bird.y, width: bird.width, height: bird.height, alpha: 0.6, scale: 1.0 });
         }
-
-        // موجات متتالية أثناء البوست
-        if (frame % 8 === 0) {
-            spawnWave(true);
-        }
+        if (frame % 8 === 0) spawnWave(true);
     }
 }
 
@@ -283,9 +285,7 @@ function drawBoostGlow() {
 function drawGameOverScreen() {
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
     ctx.fillRect(0, 0, displayWidth, displayHeight);
-
-    const boxW = 260;
-    const boxH = 300;
+    const boxW = 260, boxH = 300;
     const boxX = displayWidth / 2 - boxW / 2;
     const boxY = displayHeight / 2 - boxH / 2 + 30;
     const radius = 22;
@@ -310,7 +310,6 @@ function drawGameOverScreen() {
     const imgSize = 90;
     const imgX = displayWidth / 2 - imgSize / 2;
     const imgY = boxY - imgSize / 2;
-
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.25)';
     ctx.shadowBlur = 10;
@@ -335,33 +334,27 @@ function drawGameOverScreen() {
     ctx.font = 'bold 32px Arial';
     ctx.textAlign = 'center';
     ctx.fillText('ايا فايج', displayWidth / 2, boxY + 90);
-
     ctx.strokeStyle = '#f0d080';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(boxX + 30, boxY + 105);
     ctx.lineTo(boxX + boxW - 30, boxY + 105);
     ctx.stroke();
-
     ctx.fillStyle = '#555';
     ctx.font = '18px Arial';
     ctx.fillText('النقاط', displayWidth / 2, boxY + 135);
-
     ctx.fillStyle = '#e67e22';
     ctx.font = 'bold 42px Arial';
     ctx.fillText(finalScore, displayWidth / 2, boxY + 185);
 
-    const btnW = 100;
-    const btnH = 55;
+    const btnW = 100, btnH = 55;
     const btnX = displayWidth / 2 - btnW / 2;
     const btnY = boxY + 215;
     btn.x = btnX; btn.y = btnY; btn.w = btnW; btn.h = btnH;
-
     ctx.fillStyle = '#27ae60';
     ctx.beginPath();
     ctx.roundRect(btnX, btnY, btnW, btnH, 14);
     ctx.fill();
-
     ctx.font = '32px Arial';
     ctx.textAlign = 'center';
     ctx.fillText('🔁', displayWidth / 2, btnY + 40);
@@ -378,10 +371,7 @@ function update() {
             ctx.drawImage(birdImage, -bird.width / 2, -bird.height / 2, bird.width, bird.height);
             ctx.restore();
         }
-        pipes.forEach(pipe => {
-            ctx.fillStyle = 'yellow';
-            ctx.fillRect(pipe.x, pipe.y, pipe.width, pipe.height);
-        });
+        pipes.forEach(pipe => { ctx.fillStyle = 'yellow'; ctx.fillRect(pipe.x, pipe.y, pipe.width, pipe.height); });
         drawGameOverScreen();
         return;
     }
@@ -390,7 +380,6 @@ function update() {
 
     bird.velocity += bird.gravity;
     bird.y += bird.velocity;
-
     if (bird.y > displayHeight || bird.y < 0) triggerGameOver();
 
     frame++;
@@ -399,14 +388,14 @@ function update() {
     pipes = pipes.filter((pipe) => {
         pipe.x -= 3.2;
         if (collision(pipe)) triggerGameOver();
-        if (pipe.x + pipe.width < 0) {
-            score++;
-            return false;
-        }
+        if (pipe.x + pipe.width < 0) { score++; return false; }
         return true;
     });
 
-    // الموجات (خلف كل شيء)
+    // الأعمدة مع تأثير BW
+    drawPipes();
+
+    // الموجات
     drawWaves();
 
     // الآثار
@@ -415,13 +404,10 @@ function update() {
     // توهج البوست
     drawBoostGlow();
 
-    // الطائر
+    // الطائر (دائماً بالألوان الطبيعية)
     if (birdImage.complete && birdImage.naturalWidth > 0) {
         ctx.save();
-        if (isBoosting) {
-            ctx.shadowColor = '#00cfff';
-            ctx.shadowBlur = 20;
-        }
+        if (isBoosting) { ctx.shadowColor = '#00cfff'; ctx.shadowBlur = 20; }
         ctx.translate(bird.x + bird.width / 2, bird.y + bird.height / 2);
         ctx.drawImage(birdImage, -bird.width / 2, -bird.height / 2, bird.width, bird.height);
         ctx.restore();
@@ -430,14 +416,12 @@ function update() {
         ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
     }
 
-    // الأعمدة
-    pipes.forEach(pipe => {
-        ctx.fillStyle = 'yellow';
-        ctx.fillRect(pipe.x, pipe.y, pipe.width, pipe.height);
-    });
-
-    // النقاط
-    ctx.fillStyle = 'yellow';
+    // النقاط — تتحول للرمادي مع BW
+    const scoreColor = bwProgress > 0
+        ? `rgb(${Math.round(255 - 55 * bwProgress)}, ${Math.round(255 - 55 * bwProgress)}, ${Math.round(255 - 55 * bwProgress)})`
+        : 'yellow';
+    ctx.fillStyle = scoreColor;
+    ctx.shadowBlur = 0;
     ctx.font = '20px Arial';
     ctx.fillText('النقاط: ' + score, 10, 20);
 
@@ -448,12 +432,10 @@ function update() {
         const barW = 60;
         const barX = bird.x + bird.width / 2 - barW / 2;
         const barY = bird.y - 18;
-
         ctx.fillStyle = 'rgba(0,0,0,0.4)';
         ctx.beginPath();
         ctx.roundRect(barX, barY, barW, 8, 4);
         ctx.fill();
-
         ctx.fillStyle = '#00cfff';
         ctx.beginPath();
         ctx.roundRect(barX, barY, barW * progress, 8, 4);
@@ -468,6 +450,7 @@ function triggerGameOver() {
     isBoosting = false;
     trails = [];
     waves = [];
+    bwProgress = 0;
 }
 
 function resetGame() {
@@ -482,6 +465,7 @@ function resetGame() {
     isBoosting = false;
     trails = [];
     waves = [];
+    bwProgress = 0;
 }
 
 function gameLoop() {
@@ -490,7 +474,6 @@ function gameLoop() {
 }
 
 gameLoop();
-
 window.addEventListener('resize', () => { location.reload(); });
 </script>
 </body>
