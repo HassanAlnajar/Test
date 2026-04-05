@@ -51,8 +51,17 @@ ctx.imageSmoothingQuality = 'high';
 
 let bgImage = new Image();
 bgImage.src = 'CE20DCB8-55BF-4363-9A95-0CFD053150F7.jpeg';
-let birdImage = new Image();
-birdImage.src = 'C5B8E2ED-5DF8-4A76-B9C4-210F07E30949.jpeg';
+let char1Image = new Image();
+char1Image.src = 'C5B8E2ED-5DF8-4A76-B9C4-210F07E30949.jpeg';
+let char2Image = new Image();
+char2Image.src = 'IMG_4955.jpeg';
+
+// ── الشخصية الحالية ──
+let currentChar = localStorage.getItem('flappy_char') || 'char1';
+
+function getBirdImage() {
+    return currentChar === 'char2' ? char2Image : char1Image;
+}
 
 let bird = {
     x: 50, y: 150, width: 50, height: 50,
@@ -68,22 +77,40 @@ let score = 0, frame = 0;
 let lastPipeY = displayHeight / 2 - 75;
 let gameOver = false, finalScore = 0;
 
+// ── نظام المال ──
+let sessionMoney = 0;       // مال الجلسة الحالية
+let totalMoney = 0;         // إجمالي المال المحفوظ
+let ownedChars = ['char1']; // الشخصيات المملوكة
+let moneyEffects = [];      // تأثيرات +1000
+
+// ── شاشة المتجر ──
+let showShop = false;
+let shopLeaderboardTab = 'session'; // 'session' أو 'rich'
+let leaderboardRich = [];
+
+// ── شخصية 2: الشفافية ──
+let char2Phase = 'visible';   // 'visible' أو 'ghost'
+let char2Timer = 0;
+const CHAR2_VISIBLE_TIME = 90; // 1.5 ثانية (60fps)
+const CHAR2_GHOST_TIME   = 90;
+let char2GlowAlpha = 0;
+let char2GlowDir = 1;
+
 let playerName = localStorage.getItem('flappy_player_name') || '';
 let isEnteringName = false;
 let leaderboard = [];
 let leaderboardLoaded = false;
 
-const btn     = { x: 0, y: 0, w: 80,  h: 50 };
-const nameBtn = { x: 0, y: 0, w: 155, h: 50 };
+const btn      = { x: 0, y: 0, w: 80,  h: 50 };
+const nameBtn  = { x: 0, y: 0, w: 155, h: 50 };
+const shopBtn  = { x: 0, y: 0, w: 100, h: 50 };
 
-// ── VPS API ──
+// ── API ──
 async function loadLeaderboard() {
     try {
         const res = await fetch(`${API_URL}/scores`);
         leaderboard = await res.json();
-    } catch(e) {
-        leaderboard = [];
-    }
+    } catch(e) { leaderboard = []; }
     leaderboardLoaded = true;
 }
 
@@ -99,21 +126,68 @@ async function saveScore(name, score) {
     leaderboardLoaded = true;
 }
 
+async function loadPlayer(name) {
+    try {
+        const res = await fetch(`${API_URL}/player/${encodeURIComponent(name)}`);
+        const data = await res.json();
+        totalMoney = data.money || 0;
+        ownedChars = data.characters || ['char1'];
+    } catch(e) {}
+}
+
+async function addMoney(name, amount) {
+    try {
+        const res = await fetch(`${API_URL}/player/${encodeURIComponent(name)}/add_money`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount })
+        });
+        const data = await res.json();
+        totalMoney = data.money || 0;
+        ownedChars = data.characters || ['char1'];
+    } catch(e) {}
+}
+
+async function buyCharacter(name, character, cost) {
+    try {
+        const res = await fetch(`${API_URL}/player/${encodeURIComponent(name)}/buy`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ character, cost })
+        });
+        const data = await res.json();
+        if (!data.error) {
+            totalMoney = data.money || 0;
+            ownedChars = data.characters || ['char1'];
+            return true;
+        }
+    } catch(e) {}
+    return false;
+}
+
+async function loadRichest() {
+    try {
+        const res = await fetch(`${API_URL}/richest`);
+        leaderboardRich = await res.json();
+    } catch(e) { leaderboardRich = []; }
+}
+
 // ── اسم اللاعب ──
-nameInput.addEventListener('blur', () => {
+nameInput.addEventListener('blur', async () => {
     const val = nameInput.value.trim();
     if (val.length > 0) {
         playerName = val;
         localStorage.setItem('flappy_player_name', playerName);
-        if (gameOver) saveScore(playerName, finalScore);
+        await loadPlayer(playerName);
+        if (gameOver) {
+            await addMoney(playerName, sessionMoney);
+            await saveScore(playerName, score);
+        }
     }
     isEnteringName = false;
     nameInput.style.pointerEvents = 'none';
 });
-
-nameInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') nameInput.blur();
-});
+nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') nameInput.blur(); });
 
 function openNameInput() {
     isEnteringName = true;
@@ -152,9 +226,36 @@ function drawWaves() {
     waves = waves.filter(w => w.radius < w.maxRadius);
 }
 
+// ── تأثير +1000 دينار ──
+function spawnMoneyEffect() {
+    moneyEffects.push({
+        x: bird.x + bird.width / 2,
+        y: bird.y,
+        alpha: 1,
+        vy: -1.5
+    });
+}
+
+function drawMoneyEffects() {
+    moneyEffects.forEach(e => {
+        ctx.save();
+        ctx.globalAlpha = e.alpha;
+        ctx.fillStyle = '#f1c40f';
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#e67e22';
+        ctx.shadowBlur = 8;
+        ctx.fillText('+1,000 د.ع', e.x, e.y);
+        ctx.restore();
+        e.y += e.vy;
+        e.alpha -= 0.025;
+    });
+    moneyEffects = moneyEffects.filter(e => e.alpha > 0);
+}
+
 // ── أحداث ──
 window.addEventListener('keydown', (e) => {
-    if (isEnteringName) return;
+    if (isEnteringName || showShop) return;
     if (gameOver) return;
     if (!isHolding) {
         isHolding = true;
@@ -163,42 +264,111 @@ window.addEventListener('keydown', (e) => {
         spawnWave(false);
     }
 });
-window.addEventListener('keyup', () => { isHolding = false; isBoosting = false; });
+window.addEventListener('keyup', () => {
+    if (!isEnteringName) { isHolding = false; isBoosting = false; }
+});
 
 window.addEventListener('touchstart', (e) => {
     e.preventDefault();
     if (isEnteringName) return;
+    if (showShop) { handleShopTouch(e.touches[0].clientX, e.touches[0].clientY); return; }
     if (gameOver) { handleGameOverTouch(e.touches[0].clientX, e.touches[0].clientY); return; }
     isHolding = true;
     holdStartTime = Date.now();
     bird.velocity = bird.lift;
     spawnWave(false);
 }, { passive: false });
-window.addEventListener('touchend', () => { if (!isEnteringName) { isHolding = false; isBoosting = false; } });
+window.addEventListener('touchend', () => {
+    if (!isEnteringName && !showShop) { isHolding = false; isBoosting = false; }
+});
 
 canvas.addEventListener('mousedown', (e) => {
     if (isEnteringName) return;
-    if (gameOver) {
-        const rect = canvas.getBoundingClientRect();
-        handleGameOverTouch(e.clientX - rect.left, e.clientY - rect.top);
-        return;
-    }
+    const rect = canvas.getBoundingClientRect();
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+    if (showShop) { handleShopTouch(cx, cy); return; }
+    if (gameOver) { handleGameOverTouch(cx, cy); return; }
     isHolding = true;
     holdStartTime = Date.now();
     bird.velocity = bird.lift;
     spawnWave(false);
 });
-canvas.addEventListener('mouseup', () => { if (!isEnteringName) { isHolding = false; isBoosting = false; } });
+canvas.addEventListener('mouseup', () => {
+    if (!isEnteringName && !showShop) { isHolding = false; isBoosting = false; }
+});
 
+// ── معالجة ضغط قائمة الخسارة ──
 function handleGameOverTouch(cx, cy) {
+    // زر إعادة اللعب
     if (cx >= btn.x && cx <= btn.x + btn.w &&
         cy >= btn.y && cy <= btn.y + btn.h) {
         resetGame(); return;
     }
+    // زر المتجر
+    if (cx >= shopBtn.x && cx <= shopBtn.x + shopBtn.w &&
+        cy >= shopBtn.y && cy <= shopBtn.y + shopBtn.h) {
+        showShop = true;
+        loadRichest();
+        return;
+    }
+    // زر الاسم
     if (!playerName &&
         cx >= nameBtn.x && cx <= nameBtn.x + nameBtn.w &&
         cy >= nameBtn.y && cy <= nameBtn.y + nameBtn.h) {
         openNameInput();
+    }
+}
+
+// ── متغيرات المتجر ──
+const shopBackBtn   = { x: 0, y: 0, w: 80,  h: 40 };
+const shopBuyBtn    = { x: 0, y: 0, w: 140, h: 45 };
+const shopSelectBtn = { x: 0, y: 0, w: 140, h: 45 };
+const shopTabBtn1   = { x: 0, y: 0, w: 120, h: 36 };
+const shopTabBtn2   = { x: 0, y: 0, w: 120, h: 36 };
+let shopMessage = '';
+let shopMessageTimer = 0;
+
+// ── معالجة ضغط المتجر ──
+async function handleShopTouch(cx, cy) {
+    // زر الرجوع
+    if (cx >= shopBackBtn.x && cx <= shopBackBtn.x + shopBackBtn.w &&
+        cy >= shopBackBtn.y && cy <= shopBackBtn.y + shopBackBtn.h) {
+        showShop = false; return;
+    }
+
+    // تبويب الترتيب
+    if (cx >= shopTabBtn1.x && cx <= shopTabBtn1.x + shopTabBtn1.w &&
+        cy >= shopTabBtn1.y && cy <= shopTabBtn1.y + shopTabBtn1.h) {
+        shopLeaderboardTab = 'session'; return;
+    }
+    if (cx >= shopTabBtn2.x && cx <= shopTabBtn2.x + shopTabBtn2.w &&
+        cy >= shopTabBtn2.y && cy <= shopTabBtn2.y + shopTabBtn2.h) {
+        shopLeaderboardTab = 'rich'; return;
+    }
+
+    // زر شراء الشخصية الثانية
+    if (cx >= shopBuyBtn.x && cx <= shopBuyBtn.x + shopBuyBtn.w &&
+        cy >= shopBuyBtn.y && cy <= shopBuyBtn.y + shopBuyBtn.h) {
+        if (!playerName) { shopMessage = 'سجّل اسمك أولاً!'; shopMessageTimer = 120; return; }
+        if (ownedChars.includes('char2')) { shopMessage = 'تملكها بالفعل!'; shopMessageTimer = 120; return; }
+        if (totalMoney < 500000) { shopMessage = 'رصيدك غير كافٍ!'; shopMessageTimer = 120; return; }
+        const ok = await buyCharacter(playerName, 'char2', 500000);
+        if (ok) { shopMessage = 'تم الشراء! 🎉'; shopMessageTimer = 120; }
+        else { shopMessage = 'فشل الشراء!'; shopMessageTimer = 120; }
+        return;
+    }
+
+    // زر اختيار شخصية
+    if (cx >= shopSelectBtn.x && cx <= shopSelectBtn.x + shopSelectBtn.w &&
+        cy >= shopSelectBtn.y && cy <= shopSelectBtn.y + shopSelectBtn.h) {
+        if (ownedChars.includes('char2')) {
+            currentChar = currentChar === 'char2' ? 'char1' : 'char2';
+            localStorage.setItem('flappy_char', currentChar);
+            shopMessage = currentChar === 'char2' ? 'تم اختيار الشخصية الثانية!' : 'تم اختيار الشخصية الأولى!';
+            shopMessageTimer = 120;
+        }
+        return;
     }
 }
 
@@ -210,11 +380,14 @@ function createPipe() {
     else pipeY = lastPipeY + (Math.random() * 2 * maxDiff - maxDiff);
     pipeY = Math.max(minY, Math.min(maxY, pipeY));
     lastPipeY = pipeY;
-    pipes.push({ x: displayWidth, y: 0, width: 20, height: pipeY });
-    pipes.push({ x: displayWidth, y: pipeY + gap, width: 20, height: displayHeight - pipeY - gap });
+    pipes.push({ x: displayWidth, y: 0, width: 20, height: pipeY, passed: false });
+    pipes.push({ x: displayWidth, y: pipeY + gap, width: 20, height: displayHeight - pipeY - gap, passed: false });
 }
 
 function collision(pipe) {
+    // الشخصية الثانية في وضع شفاف تعبر الأعمدة
+    if (currentChar === 'char2' && char2Phase === 'ghost') return false;
+
     let hb = bird.hitbox;
     let bLeft = bird.x + (bird.width - hb.w) / 2, bRight = bLeft + hb.w;
     let bTop  = bird.y + (bird.height - hb.h) / 2, bBottom = bTop + hb.h;
@@ -224,6 +397,7 @@ function collision(pipe) {
     return false;
 }
 
+// ── رسم الخلفية ──
 function drawBackground() {
     const offscreen = document.createElement('canvas');
     offscreen.width = canvas.width; offscreen.height = canvas.height;
@@ -260,6 +434,93 @@ function drawPipes() {
     });
 }
 
+// ── تحديث شخصية 2 ──
+function updateChar2() {
+    if (currentChar !== 'char2') return;
+    char2Timer++;
+    if (char2Phase === 'visible' && char2Timer >= CHAR2_VISIBLE_TIME) {
+        char2Phase = 'ghost';
+        char2Timer = 0;
+        // تأثير الدخول في الشفافية
+        for (let i = 0; i < 3; i++) spawnChar2Effect('in');
+    } else if (char2Phase === 'ghost' && char2Timer >= CHAR2_GHOST_TIME) {
+        char2Phase = 'visible';
+        char2Timer = 0;
+        // تأثير العودة
+        for (let i = 0; i < 3; i++) spawnChar2Effect('out');
+    }
+    // توهج نابض
+    char2GlowAlpha += 0.05 * char2GlowDir;
+    if (char2GlowAlpha >= 1) char2GlowDir = -1;
+    if (char2GlowAlpha <= 0) char2GlowDir = 1;
+}
+
+// تأثيرات الشفافية
+let char2Effects = [];
+function spawnChar2Effect(type) {
+    for (let i = 0; i < 8; i++) {
+        const angle = (Math.PI * 2 / 8) * i;
+        char2Effects.push({
+            x: bird.x + bird.width / 2,
+            y: bird.y + bird.height / 2,
+            vx: Math.cos(angle) * (1.5 + Math.random()),
+            vy: Math.sin(angle) * (1.5 + Math.random()),
+            alpha: 1,
+            radius: 4 + Math.random() * 4,
+            color: type === 'in' ? '150, 50, 255' : '0, 220, 255'
+        });
+    }
+}
+
+function drawChar2Effects() {
+    char2Effects.forEach(e => {
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${e.color}, ${e.alpha})`;
+        ctx.shadowColor = `rgba(${e.color}, 0.8)`;
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        e.x += e.vx; e.y += e.vy;
+        e.alpha -= 0.035;
+        e.radius *= 0.97;
+    });
+    char2Effects = char2Effects.filter(e => e.alpha > 0);
+    ctx.shadowBlur = 0;
+}
+
+// ── رسم الطائر ──
+function drawBird() {
+    const img = getBirdImage();
+    if (!img.complete || !img.naturalWidth) {
+        ctx.fillStyle = isBoosting ? '#00cfff' : 'yellow';
+        ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
+        return;
+    }
+
+    ctx.save();
+
+    if (currentChar === 'char2') {
+        if (char2Phase === 'ghost') {
+            // شفاف مع توهج بنفسجي
+            ctx.globalAlpha = 0.25 + char2GlowAlpha * 0.15;
+            ctx.shadowColor = `rgba(150, 50, 255, ${0.6 + char2GlowAlpha * 0.4})`;
+            ctx.shadowBlur = 20 + char2GlowAlpha * 15;
+        } else {
+            // عادي مع توهج أزرق خفيف
+            ctx.globalAlpha = 1;
+            ctx.shadowColor = 'rgba(0, 150, 255, 0.4)';
+            ctx.shadowBlur = 8;
+        }
+    } else if (isBoosting) {
+        ctx.shadowColor = '#00cfff';
+        ctx.shadowBlur = 20;
+    }
+
+    ctx.translate(bird.x + bird.width / 2, bird.y + bird.height / 2);
+    ctx.drawImage(img, -bird.width / 2, -bird.height / 2, bird.width, bird.height);
+    ctx.restore();
+}
+
 function updateBoost() {
     if (isHolding && !isBoosting && !gameOver) {
         if (Date.now() - holdStartTime > HOLD_THRESHOLD) {
@@ -281,8 +542,9 @@ function drawTrails() {
         ctx.shadowColor = '#00cfff'; ctx.shadowBlur = 18;
         ctx.translate(t.x + t.width / 2, t.y + t.height / 2);
         ctx.scale(t.scale, t.scale);
-        if (birdImage.complete && birdImage.naturalWidth > 0)
-            ctx.drawImage(birdImage, -t.width / 2, -t.height / 2, t.width, t.height);
+        const img = getBirdImage();
+        if (img.complete && img.naturalWidth)
+            ctx.drawImage(img, -t.width / 2, -t.height / 2, t.width, t.height);
         ctx.restore();
         t.alpha -= 0.06; t.scale -= 0.03;
     });
@@ -301,14 +563,15 @@ function drawBoostGlow() {
     ctx.restore();
 }
 
+// ── قائمة الخسارة ──
 function drawGameOverScreen() {
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
     ctx.fillRect(0, 0, displayWidth, displayHeight);
 
     const hasName  = !!playerName;
-    const boxW     = 280;
+    const boxW     = 290;
     const lbHeight = leaderboard.length > 0 ? 185 : 0;
-    const boxH     = 310 + lbHeight;
+    const boxH     = 330 + lbHeight;
     const boxX     = displayWidth / 2 - boxW / 2;
     const boxY     = displayHeight / 2 - boxH / 2;
     const radius   = 22;
@@ -329,6 +592,7 @@ function drawGameOverScreen() {
     ctx.fill();
     ctx.shadowBlur = 0;
 
+    // صورة اللاعب
     const imgSize = 90;
     const imgX = displayWidth / 2 - imgSize / 2;
     const imgY = boxY - imgSize / 2;
@@ -342,78 +606,261 @@ function drawGameOverScreen() {
     ctx.beginPath();
     ctx.arc(displayWidth / 2, imgY + imgSize / 2, imgSize / 2, 0, Math.PI * 2);
     ctx.clip();
-    if (birdImage.complete && birdImage.naturalWidth > 0)
-        ctx.drawImage(birdImage, imgX, imgY, imgSize, imgSize);
+    const bImg = getBirdImage();
+    if (bImg.complete && bImg.naturalWidth)
+        ctx.drawImage(bImg, imgX, imgY, imgSize, imgSize);
     ctx.restore();
 
-    ctx.fillStyle = '#c0392b'; ctx.font = 'bold 30px Arial'; ctx.textAlign = 'center';
-    ctx.fillText('ايا فايج', displayWidth / 2, boxY + 85);
+    ctx.fillStyle = '#c0392b'; ctx.font = 'bold 28px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('ايا فايج', displayWidth / 2, boxY + 82);
 
     ctx.strokeStyle = '#f0d080'; ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(boxX + 30, boxY + 98); ctx.lineTo(boxX + boxW - 30, boxY + 98);
+    ctx.moveTo(boxX + 30, boxY + 95); ctx.lineTo(boxX + boxW - 30, boxY + 95);
     ctx.stroke();
 
-    ctx.fillStyle = '#555'; ctx.font = '16px Arial';
-    ctx.fillText('النقاط', displayWidth / 2, boxY + 122);
-    ctx.fillStyle = '#e67e22'; ctx.font = 'bold 38px Arial';
-    ctx.fillText(finalScore, displayWidth / 2, boxY + 162);
+    // النقاط والمال
+    ctx.fillStyle = '#555'; ctx.font = '14px Arial';
+    ctx.fillText('النقاط', displayWidth / 2, boxY + 116);
+    ctx.fillStyle = '#e67e22'; ctx.font = 'bold 34px Arial';
+    ctx.fillText(finalScore, displayWidth / 2, boxY + 152);
 
+    ctx.fillStyle = '#27ae60'; ctx.font = 'bold 16px Arial';
+    ctx.fillText(`💰 +${sessionMoney.toLocaleString()} د.ع`, displayWidth / 2, boxY + 178);
+    ctx.fillStyle = '#888'; ctx.font = '13px Arial';
+    ctx.fillText(`إجمالي: ${totalMoney.toLocaleString()} د.ع`, displayWidth / 2, boxY + 198);
+
+    // Leaderboard
     if (leaderboard.length > 0) {
         ctx.strokeStyle = '#f0d080'; ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(boxX + 30, boxY + 178); ctx.lineTo(boxX + boxW - 30, boxY + 178);
+        ctx.moveTo(boxX + 30, boxY + 210); ctx.lineTo(boxX + boxW - 30, boxY + 210);
         ctx.stroke();
-        ctx.fillStyle = '#888'; ctx.font = 'bold 13px Arial';
-        ctx.fillText('🏆 أفضل اللاعبين', displayWidth / 2, boxY + 196);
+        ctx.fillStyle = '#888'; ctx.font = 'bold 12px Arial';
+        ctx.fillText('🏆 أفضل اللاعبين', displayWidth / 2, boxY + 226);
         leaderboard.slice(0, 5).forEach((s, i) => {
             const isMe = s.name === playerName;
             ctx.fillStyle = isMe ? '#e67e22' : '#444';
-            ctx.font = isMe ? 'bold 13px Arial' : '13px Arial';
+            ctx.font = isMe ? 'bold 12px Arial' : '12px Arial';
             const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
-            ctx.fillText(`${medals[i]} ${s.name}  —  ${s.score}`, displayWidth / 2, boxY + 216 + i * 22);
+            ctx.fillText(`${medals[i]} ${s.name}  —  ${s.score}`, displayWidth / 2, boxY + 244 + i * 20);
         });
     }
 
     if (!leaderboardLoaded) {
         ctx.fillStyle = '#aaa'; ctx.font = '12px Arial';
-        ctx.fillText('جاري التحميل...', displayWidth / 2, boxY + 178);
+        ctx.fillText('جاري التحميل...', displayWidth / 2, boxY + 210);
     }
 
-    const btnAreaY = boxY + boxH - 62;
+    // ── الأزرار ──
+    const btnAreaY = boxY + boxH - 65;
+    const gap = 8;
+
     if (hasName) {
-        btn.w = 90; btn.h = 50;
-        btn.x = displayWidth / 2 - 45; btn.y = btnAreaY;
-        ctx.fillStyle = '#27ae60';
-        ctx.beginPath(); ctx.roundRect(btn.x, btn.y, btn.w, btn.h, 14); ctx.fill();
-        ctx.font = '30px Arial'; ctx.textAlign = 'center';
-        ctx.fillText('🔁', displayWidth / 2, btnAreaY + 36);
-    } else {
-        btn.w = 75; btn.h = 50;
-        nameBtn.w = 150; nameBtn.h = 50;
-        const gap = 10;
-        const totalW = btn.w + gap + nameBtn.w;
+        // زران: إعادة + متجر
+        btn.w = 80; btn.h = 50;
+        shopBtn.w = 100; shopBtn.h = 50;
+        const totalW = btn.w + gap + shopBtn.w;
         btn.x = displayWidth / 2 - totalW / 2; btn.y = btnAreaY;
-        nameBtn.x = btn.x + btn.w + gap; nameBtn.y = btnAreaY;
+        shopBtn.x = btn.x + btn.w + gap; shopBtn.y = btnAreaY;
+
         ctx.fillStyle = '#27ae60';
         ctx.beginPath(); ctx.roundRect(btn.x, btn.y, btn.w, btn.h, 14); ctx.fill();
         ctx.font = '28px Arial'; ctx.textAlign = 'center';
         ctx.fillText('🔁', btn.x + btn.w / 2, btnAreaY + 34);
+
+        ctx.fillStyle = '#8e44ad';
+        ctx.beginPath(); ctx.roundRect(shopBtn.x, shopBtn.y, shopBtn.w, shopBtn.h, 14); ctx.fill();
+        ctx.fillStyle = 'white'; ctx.font = 'bold 13px Arial';
+        ctx.fillText('🛒 المتجر', shopBtn.x + shopBtn.w / 2, btnAreaY + 32);
+    } else {
+        // ثلاثة أزرار
+        btn.w = 65; btn.h = 50;
+        shopBtn.w = 90; shopBtn.h = 50;
+        nameBtn.w = 130; nameBtn.h = 50;
+        const totalW = btn.w + gap + shopBtn.w + gap + nameBtn.w;
+        btn.x = displayWidth / 2 - totalW / 2; btn.y = btnAreaY;
+        shopBtn.x = btn.x + btn.w + gap; shopBtn.y = btnAreaY;
+        nameBtn.x = shopBtn.x + shopBtn.w + gap; nameBtn.y = btnAreaY;
+
+        ctx.fillStyle = '#27ae60';
+        ctx.beginPath(); ctx.roundRect(btn.x, btn.y, btn.w, btn.h, 14); ctx.fill();
+        ctx.font = '26px Arial'; ctx.textAlign = 'center';
+        ctx.fillText('🔁', btn.x + btn.w / 2, btnAreaY + 33);
+
+        ctx.fillStyle = '#8e44ad';
+        ctx.beginPath(); ctx.roundRect(shopBtn.x, shopBtn.y, shopBtn.w, shopBtn.h, 14); ctx.fill();
+        ctx.fillStyle = 'white'; ctx.font = 'bold 12px Arial';
+        ctx.fillText('🛒 المتجر', shopBtn.x + shopBtn.w / 2, btnAreaY + 32);
+
         ctx.fillStyle = '#3498db';
         ctx.beginPath(); ctx.roundRect(nameBtn.x, nameBtn.y, nameBtn.w, nameBtn.h, 14); ctx.fill();
-        ctx.fillStyle = 'white'; ctx.font = 'bold 12px Arial';
-        ctx.fillText('اكتب اسمك هنا ✏️', nameBtn.x + nameBtn.w / 2, btnAreaY + 32);
+        ctx.fillStyle = 'white'; ctx.font = 'bold 11px Arial';
+        ctx.fillText('اكتب اسمك ✏️', nameBtn.x + nameBtn.w / 2, btnAreaY + 32);
     }
     ctx.textAlign = 'left';
 }
 
+// ── شاشة المتجر ──
+function drawShopScreen() {
+    // خلفية شبه شفافة
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(0, 0, displayWidth, displayHeight);
+
+    const boxW = 300, boxH = 480;
+    const boxX = displayWidth / 2 - boxW / 2;
+    const boxY = displayHeight / 2 - boxH / 2;
+    const r = 22;
+
+    ctx.fillStyle = '#1a1a2e';
+    ctx.shadowColor = 'rgba(150,50,255,0.5)'; ctx.shadowBlur = 25;
+    ctx.beginPath();
+    ctx.moveTo(boxX + r, boxY);
+    ctx.lineTo(boxX + boxW - r, boxY);
+    ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + r);
+    ctx.lineTo(boxX + boxW, boxY + boxH - r);
+    ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - r, boxY + boxH);
+    ctx.lineTo(boxX + r, boxY + boxH);
+    ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - r);
+    ctx.lineTo(boxX, boxY + r);
+    ctx.quadraticCurveTo(boxX, boxY, boxX + r, boxY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // عنوان
+    ctx.fillStyle = '#e0aaff'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('🛒 متجر الشخصيات', displayWidth / 2, boxY + 40);
+
+    // رصيد
+    ctx.fillStyle = '#f1c40f'; ctx.font = 'bold 14px Arial';
+    ctx.fillText(`💰 رصيدك: ${totalMoney.toLocaleString()} د.ع`, displayWidth / 2, boxY + 65);
+
+    // ── الشخصية الأولى ──
+    const c1X = boxX + 30, c1Y = boxY + 85;
+    const isC1Selected = currentChar === 'char1';
+    ctx.fillStyle = isC1Selected ? 'rgba(39,174,96,0.3)' : 'rgba(255,255,255,0.05)';
+    ctx.beginPath(); ctx.roundRect(c1X, c1Y, boxW - 60, 80, 12); ctx.fill();
+    ctx.strokeStyle = isC1Selected ? '#27ae60' : '#444';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(c1X, c1Y, boxW - 60, 80, 12); ctx.stroke();
+
+    if (char1Image.complete && char1Image.naturalWidth)
+        ctx.drawImage(char1Image, c1X + 8, c1Y + 8, 64, 64);
+
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'left';
+    ctx.fillText('الشخصية الأولى', c1X + 82, c1Y + 28);
+    ctx.fillStyle = '#aaa'; ctx.font = '12px Arial';
+    ctx.fillText('⚡ إبطاء الزمن', c1X + 82, c1Y + 48);
+    ctx.fillStyle = '#27ae60'; ctx.font = 'bold 11px Arial';
+    ctx.fillText('✅ مفتوحة', c1X + 82, c1Y + 66);
+
+    // ── الشخصية الثانية ──
+    const c2X = boxX + 30, c2Y = boxY + 185;
+    const isOwned2  = ownedChars.includes('char2');
+    const isC2Selected = currentChar === 'char2';
+    ctx.fillStyle = isC2Selected ? 'rgba(142,68,173,0.3)' : 'rgba(255,255,255,0.05)';
+    ctx.beginPath(); ctx.roundRect(c2X, c2Y, boxW - 60, 80, 12); ctx.fill();
+    ctx.strokeStyle = isC2Selected ? '#8e44ad' : '#444';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(c2X, c2Y, boxW - 60, 80, 12); ctx.stroke();
+
+    if (char2Image.complete && char2Image.naturalWidth) {
+        ctx.save();
+        if (!isOwned2) ctx.globalAlpha = 0.4;
+        ctx.drawImage(char2Image, c2X + 8, c2Y + 8, 64, 64);
+        ctx.restore();
+    }
+
+    ctx.fillStyle = isOwned2 ? '#fff' : '#888'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'left';
+    ctx.fillText('الشخصية الثانية', c2X + 82, c2Y + 28);
+    ctx.fillStyle = '#aaa'; ctx.font = '12px Arial';
+    ctx.fillText('👻 الاختفاء', c2X + 82, c2Y + 48);
+    if (!isOwned2) {
+        ctx.fillStyle = '#e74c3c'; ctx.font = 'bold 11px Arial';
+        ctx.fillText('🔒 500,000 د.ع', c2X + 82, c2Y + 66);
+    } else {
+        ctx.fillStyle = '#27ae60'; ctx.font = 'bold 11px Arial';
+        ctx.fillText('✅ تملكها', c2X + 82, c2Y + 66);
+    }
+
+    // زر شراء / اختيار
+    const btnY2 = c2Y + 90;
+    if (!isOwned2) {
+        shopBuyBtn.x = displayWidth / 2 - 70; shopBuyBtn.y = btnY2;
+        shopBuyBtn.w = 140; shopBuyBtn.h = 42;
+        ctx.fillStyle = totalMoney >= 500000 ? '#e74c3c' : '#555';
+        ctx.beginPath(); ctx.roundRect(shopBuyBtn.x, shopBuyBtn.y, shopBuyBtn.w, shopBuyBtn.h, 12); ctx.fill();
+        ctx.fillStyle = 'white'; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center';
+        ctx.fillText('🛒 شراء 500,000 د.ع', displayWidth / 2, btnY2 + 27);
+    } else {
+        shopSelectBtn.x = displayWidth / 2 - 70; shopSelectBtn.y = btnY2;
+        shopSelectBtn.w = 140; shopSelectBtn.h = 42;
+        ctx.fillStyle = isC2Selected ? '#8e44ad' : '#27ae60';
+        ctx.beginPath(); ctx.roundRect(shopSelectBtn.x, shopSelectBtn.y, shopSelectBtn.w, shopSelectBtn.h, 12); ctx.fill();
+        ctx.fillStyle = 'white'; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center';
+        ctx.fillText(isC2Selected ? '✅ محددة' : '▶ اختيار', displayWidth / 2, btnY2 + 27);
+    }
+
+    // ── تبويب الترتيب ──
+    const tabY = btnY2 + 58;
+    shopTabBtn1.x = boxX + 20; shopTabBtn1.y = tabY; shopTabBtn1.w = 118; shopTabBtn1.h = 34;
+    shopTabBtn2.x = boxX + 150; shopTabBtn2.y = tabY; shopTabBtn2.w = 118; shopTabBtn2.h = 34;
+
+    ctx.fillStyle = shopLeaderboardTab === 'session' ? '#e67e22' : '#333';
+    ctx.beginPath(); ctx.roundRect(shopTabBtn1.x, shopTabBtn1.y, shopTabBtn1.w, shopTabBtn1.h, 8); ctx.fill();
+    ctx.fillStyle = 'white'; ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('🏆 أعلى جلسة', shopTabBtn1.x + shopTabBtn1.w / 2, tabY + 22);
+
+    ctx.fillStyle = shopLeaderboardTab === 'rich' ? '#f1c40f' : '#333';
+    ctx.beginPath(); ctx.roundRect(shopTabBtn2.x, shopTabBtn2.y, shopTabBtn2.w, shopTabBtn2.h, 8); ctx.fill();
+    ctx.fillStyle = shopLeaderboardTab === 'rich' ? '#000' : 'white'; ctx.font = 'bold 11px Arial';
+    ctx.fillText('💰 الأغنياء', shopTabBtn2.x + shopTabBtn2.w / 2, tabY + 22);
+
+    // بيانات الترتيب
+    const lb = shopLeaderboardTab === 'session' ? leaderboard : leaderboardRich;
+    lb.slice(0, 4).forEach((s, i) => {
+        const isMe = s.name === playerName;
+        ctx.fillStyle = isMe ? '#f1c40f' : '#ccc';
+        ctx.font = isMe ? 'bold 11px Arial' : '11px Arial';
+        ctx.textAlign = 'center';
+        const medals = ['🥇','🥈','🥉','4️⃣'];
+        const val = shopLeaderboardTab === 'session' ? s.score : `${(s.money||0).toLocaleString()} د.ع`;
+        ctx.fillText(`${medals[i]} ${s.name} — ${val}`, displayWidth / 2, tabY + 52 + i * 18);
+    });
+
+    // رسالة
+    if (shopMessageTimer > 0) {
+        ctx.fillStyle = '#2ecc71'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center';
+        ctx.fillText(shopMessage, displayWidth / 2, boxY + boxH - 55);
+        shopMessageTimer--;
+    }
+
+    // زر الرجوع
+    shopBackBtn.x = boxX + 10; shopBackBtn.y = boxY + 10;
+    shopBackBtn.w = 70; shopBackBtn.h = 36;
+    ctx.fillStyle = '#c0392b';
+    ctx.beginPath(); ctx.roundRect(shopBackBtn.x, shopBackBtn.y, shopBackBtn.w, shopBackBtn.h, 10); ctx.fill();
+    ctx.fillStyle = 'white'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('← رجوع', shopBackBtn.x + shopBackBtn.w / 2, shopBackBtn.y + 24);
+
+    ctx.textAlign = 'left';
+}
+
+// ── update ──
 function update() {
     drawBackground();
+
+    if (showShop) {
+        drawShopScreen();
+        return;
+    }
+
     if (gameOver) {
-        if (birdImage.complete && birdImage.naturalWidth > 0) {
+        if (getBirdImage().complete) {
             ctx.save();
             ctx.translate(bird.x + bird.width / 2, bird.y + bird.height / 2);
-            ctx.drawImage(birdImage, -bird.width / 2, -bird.height / 2, bird.width, bird.height);
+            ctx.drawImage(getBirdImage(), -bird.width / 2, -bird.height / 2, bird.width, bird.height);
             ctx.restore();
         }
         drawPipes();
@@ -421,7 +868,9 @@ function update() {
         return;
     }
 
+    updateChar2();
     updateBoost();
+
     bird.velocity += bird.gravity;
     bird.y += bird.velocity;
     if (bird.y > displayHeight || bird.y < 0) triggerGameOver();
@@ -432,33 +881,36 @@ function update() {
     pipes = pipes.filter(pipe => {
         pipe.x -= 3.2;
         if (collision(pipe)) triggerGameOver();
-        if (pipe.x + pipe.width < 0) { score++; return false; }
+        // حساب المال عند تجاوز عمود علوي فقط
+        if (!pipe.passed && pipe.y === 0 && pipe.x + pipe.width < bird.x) {
+            pipe.passed = true;
+            score++;
+            sessionMoney += 1000;
+            spawnMoneyEffect();
+        }
+        if (pipe.x + pipe.width < 0) return false;
         return true;
     });
 
     drawPipes();
+    drawChar2Effects();
     drawWaves();
     drawTrails();
     drawBoostGlow();
+    drawBird();
+    drawMoneyEffects();
 
-    if (birdImage.complete && birdImage.naturalWidth > 0) {
-        ctx.save();
-        if (isBoosting) { ctx.shadowColor = '#00cfff'; ctx.shadowBlur = 20; }
-        ctx.translate(bird.x + bird.width / 2, bird.y + bird.height / 2);
-        ctx.drawImage(birdImage, -bird.width / 2, -bird.height / 2, bird.width, bird.height);
-        ctx.restore();
-    } else {
-        ctx.fillStyle = isBoosting ? '#00cfff' : 'yellow';
-        ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
-    }
-
+    // النقاط والمال
     const sc = bwProgress > 0
         ? `rgb(${Math.round(255-55*bwProgress)},${Math.round(255-55*bwProgress)},${Math.round(255-55*bwProgress)})`
         : 'yellow';
     ctx.fillStyle = sc; ctx.shadowBlur = 0;
-    ctx.font = '20px Arial';
-    ctx.fillText('النقاط: ' + score, 10, 20);
+    ctx.font = '18px Arial';
+    ctx.fillText(`النقاط: ${score}`, 10, 22);
+    ctx.fillStyle = '#f1c40f'; ctx.font = 'bold 14px Arial';
+    ctx.fillText(`💰 ${sessionMoney.toLocaleString()} د.ع`, 10, 42);
 
+    // شريط البوست
     if (isHolding && !isBoosting) {
         const progress = Math.min((Date.now() - holdStartTime) / HOLD_THRESHOLD, 1);
         const barW = 60, barX = bird.x + bird.width / 2 - 30, barY = bird.y - 18;
@@ -467,9 +919,22 @@ function update() {
         ctx.fillStyle = '#00cfff';
         ctx.beginPath(); ctx.roundRect(barX, barY, barW * progress, 8, 4); ctx.fill();
     }
+
+    // مؤشر الشخصية الثانية
+    if (currentChar === 'char2') {
+        const phase = char2Phase === 'ghost' ? '👻 شفاف' : '👤 عادي';
+        const remaining = char2Phase === 'ghost'
+            ? Math.ceil((CHAR2_GHOST_TIME - char2Timer) / 60 * 10) / 10
+            : Math.ceil((CHAR2_VISIBLE_TIME - char2Timer) / 60 * 10) / 10;
+        ctx.fillStyle = char2Phase === 'ghost' ? '#b388ff' : '#80cbc4';
+        ctx.font = 'bold 13px Arial';
+        ctx.textAlign = 'right';
+        ctx.fillText(`${phase} ${remaining}s`, displayWidth - 10, 22);
+        ctx.textAlign = 'left';
+    }
 }
 
-function triggerGameOver() {
+async function triggerGameOver() {
     if (gameOver) return;
     finalScore = score;
     gameOver = true;
@@ -477,7 +942,8 @@ function triggerGameOver() {
     trails = []; waves = []; bwProgress = 0;
     leaderboardLoaded = false;
     if (playerName) {
-        saveScore(playerName, finalScore);
+        await addMoney(playerName, sessionMoney);
+        await saveScore(playerName, finalScore);
     } else {
         loadLeaderboard();
     }
@@ -487,13 +953,16 @@ function resetGame() {
     bird.y = displayHeight / 2; bird.velocity = 0;
     pipes = []; score = 0; frame = 0;
     lastPipeY = displayHeight / 2 - 75;
-    gameOver = false;
+    gameOver = false; showShop = false;
     isHolding = false; isBoosting = false;
     trails = []; waves = []; bwProgress = 0;
+    sessionMoney = 0; moneyEffects = [];
+    char2Phase = 'visible'; char2Timer = 0; char2Effects = [];
 }
 
 function gameLoop() { update(); requestAnimationFrame(gameLoop); }
 
+if (playerName) loadPlayer(playerName);
 loadLeaderboard();
 gameLoop();
 
