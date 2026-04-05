@@ -783,12 +783,13 @@ function drawShopScreen() {
         ctx.drawImage(char1Image, c1X + 8, c1Y + 8, 64, 64);
 
     ctx.fillStyle = '#fff'; ctx.font = 'bold 14px Tajawal'; ctx.textAlign = 'left';
-    ctx.fillText('سوادي السريع', c1X + 82, c1Y + 28); 
+    ctx.fillText('سوادي السريع', c1X + 82, c1Y + 28);
     ctx.fillStyle = '#aaa'; ctx.font = '10px "Tajawal"';
     ctx.fillText('⚡ عند الضغط المطوّل', c1X + 82, c1Y + 44);
     ctx.fillText('سوادي سيبطأ الزمن', c1X + 82, c1Y + 58);
-    ctx.fillStyle = '#27ae60'; ctx.font = 'bold 11px Tajawal';
-    ctx.fillText('✅ تملكها', c2X + 82, c2Y + 74);
+    ctx.fillStyle = '#27ae60'; ctx.font = 'bold 11px "Tajawal"';
+    ctx.fillText('✅ تملكها', c1X + 82, c1Y + 74);
+
 
     // ── سوادي الشبح ──
     const c2X = boxX + 30, c2Y = boxY + 185;
@@ -813,10 +814,11 @@ function drawShopScreen() {
     ctx.fillText('👻 كل ثانية ونصف يصبح', c2X + 82, c2Y + 44);
     ctx.fillText('شبحًا لمدة ثانيتين', c2X + 82, c2Y + 58);
     if (!isOwned2) {
-        ctx.fillStyle = '#e74c3c'; ctx.font = 'bold 11px Tajawal';
+        ctx.fillStyle = '#e74c3c'; ctx.font = 'bold 11px "Tajawal"';
         ctx.fillText('🔒 100,000 د.ع', c2X + 82, c2Y + 74);
-    } else {
-        ctx.fillStyle = '#27ae60'; ctx.font = 'bold 11px Tajawal';
+    }
+    else {
+        ctx.fillStyle = '#27ae60'; ctx.font = 'bold 11px "Tajawal"';
         ctx.fillText('✅ تملكها', c2X + 82, c2Y + 74);
     }
 
