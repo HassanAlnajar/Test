@@ -349,8 +349,8 @@ async function handleShopTouch(cx, cy) {
         cy >= shopBuyBtn.y && cy <= shopBuyBtn.y + shopBuyBtn.h) {
         if (!playerName) { shopMessage = 'سجّل اسمك أولاً!'; shopMessageTimer = 120; return; }
         if (ownedChars.includes('char2')) { shopMessage = 'تملكها بالفعل!'; shopMessageTimer = 120; return; }
-        if (totalMoney < 500000) { shopMessage = 'رصيدك غير كافٍ!'; shopMessageTimer = 120; return; }
-        const ok = await buyCharacter(playerName, 'char2', 500000);
+        if (totalMoney < 175000) { shopMessage = 'رصيدك غير كافٍ!'; shopMessageTimer = 120; return; }
+        const ok = await buyCharacter(playerName, 'char2', 175000);
         if (ok) { shopMessage = 'تم الشراء! 🎉'; shopMessageTimer = 120; }
         else { shopMessage = 'فشل الشراء!'; shopMessageTimer = 120; }
         return;
@@ -812,7 +812,7 @@ function drawShopScreen() {
     ctx.fillText('👻 الاختفاء', c2X + 82, c2Y + 48);
     if (!isOwned2) {
         ctx.fillStyle = '#e74c3c'; ctx.font = 'bold 11px Tajawal';
-        ctx.fillText('🔒 500,000 د.ع', c2X + 82, c2Y + 66);
+        ctx.fillText('🔒 175,000 د.ع', c2X + 82, c2Y + 66);
     } else {
         ctx.fillStyle = '#27ae60'; ctx.font = 'bold 11px Tajawal';
         ctx.fillText('✅ تملكها', c2X + 82, c2Y + 66);
@@ -823,10 +823,10 @@ function drawShopScreen() {
     if (!isOwned2) {
         shopBuyBtn.x = displayWidth / 2 - 70; shopBuyBtn.y = btnY2;
         shopBuyBtn.w = 140; shopBuyBtn.h = 42;
-        ctx.fillStyle = totalMoney >= 500000 ? '#e74c3c' : '#555';
+        ctx.fillStyle = totalMoney >= 175000 ? '#e74c3c' : '#555';
         ctx.beginPath(); ctx.roundRect(shopBuyBtn.x, shopBuyBtn.y, shopBuyBtn.w, shopBuyBtn.h, 12); ctx.fill();
         ctx.fillStyle = 'white'; ctx.font = 'bold 13px Tajawal'; ctx.textAlign = 'center';
-        ctx.fillText('🛒 شراء 500,000 د.ع', displayWidth / 2, btnY2 + 27);
+        ctx.fillText('🛒 شراء 175,000 د.ع', displayWidth / 2, btnY2 + 27);
     } else {
         shopSelectBtn.x = displayWidth / 2 - 70; shopSelectBtn.y = btnY2;
         shopSelectBtn.w = 140; shopSelectBtn.h = 42;
