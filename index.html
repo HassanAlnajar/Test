@@ -3,7 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800&display=swap" rel="stylesheet">
+
 <title>Flappy Sawadi</title>
+
 <style>
     body {
         margin: 0;
@@ -242,7 +247,7 @@ function drawMoneyEffects() {
         ctx.save();
         ctx.globalAlpha = e.alpha;
         ctx.fillStyle = '#f1c40f';
-        ctx.font = 'bold 16px Arial';
+        ctx.font = 'bold 16px Tajawal';
         ctx.textAlign = 'center';
         ctx.shadowColor = '#e67e22';
         ctx.shadowBlur = 8;
@@ -640,7 +645,7 @@ function drawGameOverScreen() {
         ctx.drawImage(bImg, imgX, imgY, imgSize, imgSize);
     ctx.restore();
 
-    ctx.fillStyle = '#c0392b'; ctx.font = 'bold 28px Arial'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#c0392b'; ctx.font = 'bold 28px Tajawal'; ctx.textAlign = 'center';
     ctx.fillText('ايا فايج', displayWidth / 2, boxY + 82);
 
     ctx.strokeStyle = '#f0d080'; ctx.lineWidth = 1.5;
@@ -649,14 +654,14 @@ function drawGameOverScreen() {
     ctx.stroke();
 
     // النقاط والمال
-    ctx.fillStyle = '#555'; ctx.font = '14px Arial';
+    ctx.fillStyle = '#555'; ctx.font = '14px Tajawal';
     ctx.fillText('النقاط', displayWidth / 2, boxY + 116);
-    ctx.fillStyle = '#e67e22'; ctx.font = 'bold 34px Arial';
+    ctx.fillStyle = '#e67e22'; ctx.font = 'bold 34px Tajawal';
     ctx.fillText(finalScore, displayWidth / 2, boxY + 152);
 
-    ctx.fillStyle = '#27ae60'; ctx.font = 'bold 16px Arial';
+    ctx.fillStyle = '#27ae60'; ctx.font = 'bold 16px Tajawal';
     ctx.fillText(`💰 +${sessionMoney.toLocaleString()} د.ع`, displayWidth / 2, boxY + 178);
-    ctx.fillStyle = '#888'; ctx.font = '13px Arial';
+    ctx.fillStyle = '#888'; ctx.font = '13px Tajawal';
     ctx.fillText(`إجمالي: ${totalMoney.toLocaleString()} د.ع`, displayWidth / 2, boxY + 198);
 
     // Leaderboard
@@ -665,19 +670,19 @@ function drawGameOverScreen() {
         ctx.beginPath();
         ctx.moveTo(boxX + 30, boxY + 210); ctx.lineTo(boxX + boxW - 30, boxY + 210);
         ctx.stroke();
-        ctx.fillStyle = '#888'; ctx.font = 'bold 12px Arial';
+        ctx.fillStyle = '#888'; ctx.font = 'bold 12px Tajawal';
         ctx.fillText('🏆 أفضل اللاعبين', displayWidth / 2, boxY + 226);
         leaderboard.slice(0, 5).forEach((s, i) => {
             const isMe = s.name === playerName;
             ctx.fillStyle = isMe ? '#e67e22' : '#444';
-            ctx.font = isMe ? 'bold 12px Arial' : '12px Arial';
+            ctx.font = isMe ? 'bold 12px Tajawal' : '12px Tajawal';
             const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
             ctx.fillText(`${medals[i]} ${s.name}  —  ${s.score}`, displayWidth / 2, boxY + 244 + i * 20);
         });
     }
 
     if (!leaderboardLoaded) {
-        ctx.fillStyle = '#aaa'; ctx.font = '12px Arial';
+        ctx.fillStyle = '#aaa'; ctx.font = '12px Tajawal';
         ctx.fillText('جاري التحميل...', displayWidth / 2, boxY + 210);
     }
 
@@ -695,12 +700,12 @@ function drawGameOverScreen() {
 
         ctx.fillStyle = '#27ae60';
         ctx.beginPath(); ctx.roundRect(btn.x, btn.y, btn.w, btn.h, 14); ctx.fill();
-        ctx.font = '28px Arial'; ctx.textAlign = 'center';
+        ctx.font = '28px Tajawal'; ctx.textAlign = 'center';
         ctx.fillText('🔁', btn.x + btn.w / 2, btnAreaY + 34);
 
         ctx.fillStyle = '#8e44ad';
         ctx.beginPath(); ctx.roundRect(shopBtn.x, shopBtn.y, shopBtn.w, shopBtn.h, 14); ctx.fill();
-        ctx.fillStyle = 'white'; ctx.font = 'bold 13px Arial';
+        ctx.fillStyle = 'white'; ctx.font = 'bold 13px Tajawal';
         ctx.fillText('🛒 المتجر', shopBtn.x + shopBtn.w / 2, btnAreaY + 32);
     } else {
         // ثلاثة أزرار
@@ -714,17 +719,17 @@ function drawGameOverScreen() {
 
         ctx.fillStyle = '#27ae60';
         ctx.beginPath(); ctx.roundRect(btn.x, btn.y, btn.w, btn.h, 14); ctx.fill();
-        ctx.font = '26px Arial'; ctx.textAlign = 'center';
+        ctx.font = '26px Tajawal'; ctx.textAlign = 'center';
         ctx.fillText('🔁', btn.x + btn.w / 2, btnAreaY + 33);
 
         ctx.fillStyle = '#8e44ad';
         ctx.beginPath(); ctx.roundRect(shopBtn.x, shopBtn.y, shopBtn.w, shopBtn.h, 14); ctx.fill();
-        ctx.fillStyle = 'white'; ctx.font = 'bold 12px Arial';
+        ctx.fillStyle = 'white'; ctx.font = 'bold 12px Tajawal';
         ctx.fillText('🛒 المتجر', shopBtn.x + shopBtn.w / 2, btnAreaY + 32);
 
         ctx.fillStyle = '#3498db';
         ctx.beginPath(); ctx.roundRect(nameBtn.x, nameBtn.y, nameBtn.w, nameBtn.h, 14); ctx.fill();
-        ctx.fillStyle = 'white'; ctx.font = 'bold 11px Arial';
+        ctx.fillStyle = 'white'; ctx.font = 'bold 11px Tajawal';
         ctx.fillText('اكتب اسمك ✏️', nameBtn.x + nameBtn.w / 2, btnAreaY + 32);
     }
     ctx.textAlign = 'left';
@@ -758,11 +763,11 @@ function drawShopScreen() {
     ctx.shadowBlur = 0;
 
     // عنوان
-    ctx.fillStyle = '#e0aaff'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#e0aaff'; ctx.font = 'bold 22px Tajawal'; ctx.textAlign = 'center';
     ctx.fillText('🛒 متجر الشخصيات', displayWidth / 2, boxY + 40);
 
     // رصيد
-    ctx.fillStyle = '#f1c40f'; ctx.font = 'bold 14px Arial';
+    ctx.fillStyle = '#f1c40f'; ctx.font = 'bold 14px Tajawal';
     ctx.fillText(`💰 رصيدك: ${totalMoney.toLocaleString()} د.ع`, displayWidth / 2, boxY + 65);
 
     // ── سوادي السريع ──
@@ -777,11 +782,11 @@ function drawShopScreen() {
     if (char1Image.complete && char1Image.naturalWidth)
         ctx.drawImage(char1Image, c1X + 8, c1Y + 8, 64, 64);
 
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'left';
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 14px Tajawal'; ctx.textAlign = 'left';
     ctx.fillText('سوادي السريع', c1X + 82, c1Y + 28);
-    ctx.fillStyle = '#aaa'; ctx.font = '12px Arial';
+    ctx.fillStyle = '#aaa'; ctx.font = '12px Tajawal';
     ctx.fillText('⚡ إبطاء الزمن', c1X + 82, c1Y + 48);
-    ctx.fillStyle = '#27ae60'; ctx.font = 'bold 11px Arial';
+    ctx.fillStyle = '#27ae60'; ctx.font = 'bold 11px Tajawal';
     ctx.fillText('✅ مفتوحة', c1X + 82, c1Y + 66);
 
     // ── سوادي الشبح ──
@@ -801,15 +806,15 @@ function drawShopScreen() {
         ctx.restore();
     }
 
-    ctx.fillStyle = isOwned2 ? '#fff' : '#888'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'left';
+    ctx.fillStyle = isOwned2 ? '#fff' : '#888'; ctx.font = 'bold 14px Tajawal'; ctx.textAlign = 'left';
     ctx.fillText('سوادي الشبح', c2X + 82, c2Y + 28);
-    ctx.fillStyle = '#aaa'; ctx.font = '12px Arial';
+    ctx.fillStyle = '#aaa'; ctx.font = '12px Tajawal';
     ctx.fillText('👻 الاختفاء', c2X + 82, c2Y + 48);
     if (!isOwned2) {
-        ctx.fillStyle = '#e74c3c'; ctx.font = 'bold 11px Arial';
+        ctx.fillStyle = '#e74c3c'; ctx.font = 'bold 11px Tajawal';
         ctx.fillText('🔒 500,000 د.ع', c2X + 82, c2Y + 66);
     } else {
-        ctx.fillStyle = '#27ae60'; ctx.font = 'bold 11px Arial';
+        ctx.fillStyle = '#27ae60'; ctx.font = 'bold 11px Tajawal';
         ctx.fillText('✅ تملكها', c2X + 82, c2Y + 66);
     }
 
@@ -820,14 +825,14 @@ function drawShopScreen() {
         shopBuyBtn.w = 140; shopBuyBtn.h = 42;
         ctx.fillStyle = totalMoney >= 500000 ? '#e74c3c' : '#555';
         ctx.beginPath(); ctx.roundRect(shopBuyBtn.x, shopBuyBtn.y, shopBuyBtn.w, shopBuyBtn.h, 12); ctx.fill();
-        ctx.fillStyle = 'white'; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center';
+        ctx.fillStyle = 'white'; ctx.font = 'bold 13px Tajawal'; ctx.textAlign = 'center';
         ctx.fillText('🛒 شراء 500,000 د.ع', displayWidth / 2, btnY2 + 27);
     } else {
         shopSelectBtn.x = displayWidth / 2 - 70; shopSelectBtn.y = btnY2;
         shopSelectBtn.w = 140; shopSelectBtn.h = 42;
         ctx.fillStyle = isC2Selected ? '#8e44ad' : '#27ae60';
         ctx.beginPath(); ctx.roundRect(shopSelectBtn.x, shopSelectBtn.y, shopSelectBtn.w, shopSelectBtn.h, 12); ctx.fill();
-        ctx.fillStyle = 'white'; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center';
+        ctx.fillStyle = 'white'; ctx.font = 'bold 13px Tajawal'; ctx.textAlign = 'center';
         ctx.fillText(isC2Selected ? '✅ محددة' : '▶ اختيار', displayWidth / 2, btnY2 + 27);
     }
     
@@ -837,13 +842,13 @@ function drawShopScreen() {
     ctx.moveTo(boxX + 20, lbY); ctx.lineTo(boxX + boxW - 20, lbY);
     ctx.stroke();
     
-    ctx.fillStyle = '#f1c40f'; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#f1c40f'; ctx.font = 'bold 13px Tajawal'; ctx.textAlign = 'center';
     ctx.fillText('💰 أغنى اللاعبين', displayWidth / 2, lbY + 18);
     
     leaderboardRich.slice(0, 4).forEach((s, i) => {
         const isMe = s.name === playerName;
         ctx.fillStyle = isMe ? '#f1c40f' : '#ccc';
-        ctx.font = isMe ? 'bold 11px Arial' : '11px Arial';
+        ctx.font = isMe ? 'bold 11px Tajawal' : '11px Tajawal';
         ctx.textAlign = 'center';
         const medals = ['🥇','🥈','🥉','4️⃣'];
         ctx.fillText(`${medals[i]} ${s.name} — ${(s.money||0).toLocaleString()} د.ع`, displayWidth / 2, lbY + 36 + i * 18);
@@ -852,7 +857,7 @@ function drawShopScreen() {
 
     // رسالة
     if (shopMessageTimer > 0) {
-        ctx.fillStyle = '#2ecc71'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center';
+        ctx.fillStyle = '#2ecc71'; ctx.font = 'bold 14px Tajawal'; ctx.textAlign = 'center';
         ctx.fillText(shopMessage, displayWidth / 2, boxY + boxH - 55);
         shopMessageTimer--;
     }
@@ -862,7 +867,7 @@ function drawShopScreen() {
     shopBackBtn.w = 70; shopBackBtn.h = 36;
     ctx.fillStyle = '#c0392b';
     ctx.beginPath(); ctx.roundRect(shopBackBtn.x, shopBackBtn.y, shopBackBtn.w, shopBackBtn.h, 10); ctx.fill();
-    ctx.fillStyle = 'white'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center';
+    ctx.fillStyle = 'white'; ctx.font = 'bold 12px Tajawal'; ctx.textAlign = 'center';
     ctx.fillText('← رجوع', shopBackBtn.x + shopBackBtn.w / 2, shopBackBtn.y + 24);
 
     ctx.textAlign = 'left';
@@ -929,11 +934,11 @@ function update() {
     ? `rgb(${Math.round(255-55*bwProgress)},${Math.round(255-55*bwProgress)},${Math.round(255-55*bwProgress)})`
     : 'yellow';
     ctx.fillStyle = sc; ctx.shadowBlur = 0;
-    ctx.font = '18px Arial';
-    ctx.fillText(`النقاط: ${score}`, 10, 22);
+    ctx.font = '18px Tajawal';
+    ctx.fillText(`النقاط: ${score} | 🏆: ${personalBest}`, 10, 22);
     ctx.fillStyle = bwProgress > 0 ? sc : '#f1c40f';
-    ctx.font = 'bold 14px Arial';
-    ctx.fillText(`💰 ${sessionMoney.toLocaleString()} د.ع`, 10, 42);
+    ctx.font = 'bold 14px Tajawal';
+    ctx.fillText(`💸 ${sessionMoney.toLocaleString()} د.ع`, 10, 42);
 
 
     // شريط البوست
