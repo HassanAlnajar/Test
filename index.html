@@ -788,8 +788,7 @@ function drawShopScreen() {
     ctx.fillText('⚡ عند الضغط المطوّل', c1X + 82, c1Y + 44);
     ctx.fillText('سوادي سيبطأ الزمن', c1X + 82, c1Y + 58);
     ctx.fillStyle = '#27ae60'; ctx.font = 'bold 11px Tajawal';
-    ctx.fillText(' ', c1X + 82, c1Y + 66);
-    ctx.fillText('✅ تملكها', c2X + 82, c2Y + 66);
+    ctx.fillText('✅ تملكها', c2X + 82, c2Y + 74);
 
     // ── سوادي الشبح ──
     const c2X = boxX + 30, c2Y = boxY + 185;
@@ -804,7 +803,7 @@ function drawShopScreen() {
     if (char2Image.complete && char2Image.naturalWidth) {
         ctx.save();
         if (!isOwned2) ctx.globalAlpha = 0.4;
-        ctx.drawImage(char2Image, c2X + 8, c2Y + 8, 64, 64);
+        ctx.drawImage(char2Image, c2X + 8, c2Y + 8, 64, 66);
         ctx.restore();
     }
 
@@ -815,11 +814,10 @@ function drawShopScreen() {
     ctx.fillText('شبحًا لمدة ثانيتين', c2X + 82, c2Y + 58);
     if (!isOwned2) {
         ctx.fillStyle = '#e74c3c'; ctx.font = 'bold 11px Tajawal';
-        ctx.fillText('🔒 100,000 د.ع', c2X + 82, c2Y + 66);
+        ctx.fillText('🔒 100,000 د.ع', c2X + 82, c2Y + 74);
     } else {
         ctx.fillStyle = '#27ae60'; ctx.font = 'bold 11px Tajawal';
-        ctx.fillText(' ', c2X + 82, c2Y + 66);
-        ctx.fillText('✅ تملكها', c2X + 82, c2Y + 66);
+        ctx.fillText('✅ تملكها', c2X + 82, c2Y + 74);
     }
 
     // زر شراء / اختيار
