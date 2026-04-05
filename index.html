@@ -788,7 +788,8 @@ function drawShopScreen() {
     ctx.fillText('⚡ عند الضغط المطوّل', c1X + 82, c1Y + 44);
     ctx.fillText('سوادي سيبطأ الزمن', c1X + 82, c1Y + 58);
     ctx.fillStyle = '#27ae60'; ctx.font = 'bold 11px Tajawal';
-    ctx.fillText('✅ مفتوحة', c1X + 82, c1Y + 66);
+    ctx.fillText(' ', c1X + 82, c1Y + 66);
+    ctx.fillText('✅ تملكها', c2X + 82, c2Y + 66);
 
     // ── سوادي الشبح ──
     const c2X = boxX + 30, c2Y = boxY + 185;
@@ -817,6 +818,7 @@ function drawShopScreen() {
         ctx.fillText('🔒 100,000 د.ع', c2X + 82, c2Y + 66);
     } else {
         ctx.fillStyle = '#27ae60'; ctx.font = 'bold 11px Tajawal';
+        ctx.fillText(' ', c2X + 82, c2Y + 66);
         ctx.fillText('✅ تملكها', c2X + 82, c2Y + 66);
     }
 
