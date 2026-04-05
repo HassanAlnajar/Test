@@ -49,6 +49,7 @@ ctx.scale(scale, scale);
 ctx.imageSmoothingEnabled = true;
 ctx.imageSmoothingQuality = 'high';
 
+let personalBest = 0;
 let bgImage = new Image();
 bgImage.src = 'CE20DCB8-55BF-4363-9A95-0CFD053150F7.jpeg';
 let char1Image = new Image();
@@ -902,11 +903,14 @@ function update() {
         if (collision(pipe)) triggerGameOver();
         // حساب المال عند تجاوز عمود علوي فقط
         if (!pipe.passed && pipe.y === 0 && pipe.x + pipe.width < bird.x) {
-            pipe.passed = true;
-            score++;
-            sessionMoney += 1000;
-            spawnMoneyEffect();
-        }
+    pipe.passed = true;
+    score++;
+    if (score > personalBest) {
+        sessionMoney += 1000;
+        spawnMoneyEffect();
+    }
+}
+
         if (pipe.x + pipe.width < 0) return false;
         return true;
     });
@@ -932,7 +936,7 @@ function update() {
 
 
     // شريط البوست
-    if (isHolding && !isBoosting) {
+    if (isHolding && !isBoosting && currentChar !== 'char2') {
         const progress = Math.min((Date.now() - holdStartTime) / HOLD_THRESHOLD, 1);
         const barW = 60, barX = bird.x + bird.width / 2 - 30, barY = bird.y - 18;
         ctx.fillStyle = 'rgba(0,0,0,0.4)';
@@ -974,7 +978,7 @@ async function triggerGameOver() {
         loadLeaderboard();
     }
 }
-
+    if (score > personalBest) personalBest = score;
 
 function resetGame() {
     bird.y = displayHeight / 2; bird.velocity = 0;
