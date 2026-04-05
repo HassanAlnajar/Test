@@ -942,25 +942,23 @@ function update() {
     }
 
     // مؤشر سوادي الشبح
-    // مؤشر سوادي الشبح — شريط بنفسجي
+        // مؤشر سوادي الشبح — شريط بنفسجي
     if (currentChar === 'char2' && char2Phase === 'ghost') {
-    const progress = char2Timer / CHAR2_GHOST_TIME;
-    const barW = 60;
-    const barX = bird.x + bird.width / 2 - barW / 2;
-    const barY = bird.y - 18;
+        const progress = char2Timer / CHAR2_GHOST_TIME;
+        const barW = 60;
+        const barX = bird.x + bird.width / 2 - barW / 2;
+        const barY = bird.y - 18;
 
-    // خلفية الشريط
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.beginPath(); ctx.roundRect(barX, barY, barW, 8, 4); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath(); ctx.roundRect(barX, barY, barW, 8, 4); ctx.fill();
 
-    // امتلاء بنفسجي
-    ctx.fillStyle = '#b388ff';
-    ctx.shadowColor = '#9c27b0';
-    ctx.shadowBlur = 8;
-    ctx.beginPath(); ctx.roundRect(barX, barY, barW * progress, 8, 4); ctx.fill();
-    ctx.shadowBlur = 0;
-}
-
+        ctx.fillStyle = '#b388ff';
+        ctx.shadowColor = '#9c27b0';
+        ctx.shadowBlur = 8;
+        ctx.beginPath(); ctx.roundRect(barX, barY, barW * progress, 8, 4); ctx.fill();
+        ctx.shadowBlur = 0;
+    }
+} // ← إغلاق دالة update()
 
 async function triggerGameOver() {
     if (gameOver) return;
@@ -976,6 +974,7 @@ async function triggerGameOver() {
         loadLeaderboard();
     }
 }
+
 
 function resetGame() {
     bird.y = displayHeight / 2; bird.velocity = 0;
