@@ -98,7 +98,7 @@ let leaderboardRich = [];
 let char2Phase = 'visible';   // 'visible' أو 'ghost'
 let char2Timer = 0;
 const CHAR2_VISIBLE_TIME = 90; // 1.5 ثانية (60fps)
-const CHAR2_GHOST_TIME   = 90;
+const CHAR2_GHOST_TIME   = 120;
 let char2GlowAlpha = 0;
 let char2GlowDir = 1;
 
@@ -774,18 +774,19 @@ function drawShopScreen() {
     const c1X = boxX + 30, c1Y = boxY + 85;
     const isC1Selected = currentChar === 'char1';
     ctx.fillStyle = isC1Selected ? 'rgba(0,150,255,0.3)' : 'rgba(255,255,255,0.05)';
-    ctx.beginPath(); ctx.roundRect(c1X, c1Y, boxW - 60, 80, 12); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(c1X, c1Y, boxW - 60, 90, 12); ctx.fill();
     ctx.strokeStyle = isC1Selected ? '#00cfff' : '#444';
     ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.roundRect(c1X, c1Y, boxW - 60, 80, 12); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(c1X, c1Y, boxW - 60, 90, 12); ctx.stroke();
 
     if (char1Image.complete && char1Image.naturalWidth)
         ctx.drawImage(char1Image, c1X + 8, c1Y + 8, 64, 64);
 
     ctx.fillStyle = '#fff'; ctx.font = 'bold 14px Tajawal'; ctx.textAlign = 'left';
-    ctx.fillText('سوادي السريع', c1X + 82, c1Y + 28);
-    ctx.fillStyle = '#aaa'; ctx.font = '12px Tajawal';
-    ctx.fillText('⚡ عند الضغط المطوّل سوادي سيبطأالزمن', c1X + 82, c1Y + 48);
+    ctx.fillText('سوادي السريع', c1X + 82, c1Y + 28); 
+    ctx.fillStyle = '#aaa'; ctx.font = '10px "Tajawal"';
+    ctx.fillText('⚡ عند الضغط المطوّل', c1X + 82, c1Y + 44);
+    ctx.fillText('سوادي سيبطأ الزمن', c1X + 82, c1Y + 58);
     ctx.fillStyle = '#27ae60'; ctx.font = 'bold 11px Tajawal';
     ctx.fillText('✅ مفتوحة', c1X + 82, c1Y + 66);
 
@@ -794,10 +795,10 @@ function drawShopScreen() {
     const isOwned2  = ownedChars.includes('char2');
     const isC2Selected = currentChar === 'char2';
     ctx.fillStyle = isC2Selected ? 'rgba(142,68,173,0.3)' : 'rgba(255,255,255,0.05)';
-    ctx.beginPath(); ctx.roundRect(c2X, c2Y, boxW - 60, 80, 12); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(c2X, c2Y, boxW - 60, 90, 12); ctx.fill();
     ctx.strokeStyle = isC2Selected ? '#8e44ad' : '#444';
     ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.roundRect(c2X, c2Y, boxW - 60, 80, 12); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(c2X, c2Y, boxW - 60, 90, 12); ctx.stroke();
 
     if (char2Image.complete && char2Image.naturalWidth) {
         ctx.save();
@@ -808,8 +809,9 @@ function drawShopScreen() {
 
     ctx.fillStyle = isOwned2 ? '#fff' : '#888'; ctx.font = 'bold 14px Tajawal'; ctx.textAlign = 'left';
     ctx.fillText('سوادي الشبح', c2X + 82, c2Y + 28);
-    ctx.fillStyle = '#aaa'; ctx.font = '12px Tajawal';
-    ctx.fillText('👻 كل ثانية ونصف سيصبح سوادي شبحًا لمدة ثانيتين', c2X + 82, c2Y + 48);
+    ctx.fillStyle = '#aaa'; ctx.font = '10px "Tajawal"';
+    ctx.fillText('👻 كل ثانية ونصف يصبح', c2X + 82, c2Y + 44);
+    ctx.fillText('شبحًا لمدة ثانيتين', c2X + 82, c2Y + 58);
     if (!isOwned2) {
         ctx.fillStyle = '#e74c3c'; ctx.font = 'bold 11px Tajawal';
         ctx.fillText('🔒 100,000 د.ع', c2X + 82, c2Y + 66);
@@ -953,21 +955,27 @@ function update() {
 
     // مؤشر سوادي الشبح
         // مؤشر سوادي الشبح — شريط بنفسجي
-    if (currentChar === 'char2' && char2Phase === 'ghost') {
-        const progress = char2Timer / CHAR2_GHOST_TIME;
-        const barW = 60;
-        const barX = bird.x + bird.width / 2 - barW / 2;
-        const barY = bird.y - 18;
+    if (currentChar === 'char2') {
+    const barW = 60;
+    const barX = bird.x + bird.width / 2 - barW / 2;
+    const barY = bird.y - 18;
 
-        ctx.fillStyle = 'rgba(0,0,0,0.4)';
-        ctx.beginPath(); ctx.roundRect(barX, barY, barW, 8, 4); ctx.fill();
+    // خلفية الشريط
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath(); ctx.roundRect(barX, barY, barW, 8, 4); ctx.fill();
 
-        ctx.fillStyle = '#b388ff';
-        ctx.shadowColor = '#9c27b0';
-        ctx.shadowBlur = 8;
-        ctx.beginPath(); ctx.roundRect(barX, barY, barW * progress, 8, 4); ctx.fill();
-        ctx.shadowBlur = 0;
-    }
+    // حساب التقدم
+    const progress = char2Phase === 'visible'
+        ? char2Timer / CHAR2_VISIBLE_TIME      // يمتلئ
+        : 1 - (char2Timer / CHAR2_GHOST_TIME); // ينقص
+
+    ctx.fillStyle = char2Phase === 'ghost' ? '#b388ff' : '#9c27b0';
+    ctx.shadowColor = '#9c27b0';
+    ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.roundRect(barX, barY, barW * progress, 8, 4); ctx.fill();
+    ctx.shadowBlur = 0;
+}
+
 } // ← إغلاق دالة update()
 
 async function triggerGameOver() {
