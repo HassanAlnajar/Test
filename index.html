@@ -49,7 +49,7 @@ ctx.scale(scale, scale);
 ctx.imageSmoothingEnabled = true;
 ctx.imageSmoothingQuality = 'high';
 
-let personalBest = 0;
+let personalBest = parseInt(localStorage.getItem('flappy_best')) || 0;
 let bgImage = new Image();
 bgImage.src = 'CE20DCB8-55BF-4363-9A95-0CFD053150F7.jpeg';
 let char1Image = new Image();
@@ -972,7 +972,7 @@ async function triggerGameOver() {
     isHolding = false; isBoosting = false;
     trails = []; waves = []; bwProgress = 0;
     leaderboardLoaded = false;
-    if (score > personalBest) personalBest = score;
+    if (score > personalBest) {     personalBest = score;     localStorage.setItem('flappy_best', personalBest); }
     if (playerName) {
         await addMoney(playerName, sessionMoney);
         await saveScore(playerName, finalScore);
