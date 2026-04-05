@@ -337,17 +337,8 @@ async function handleShopTouch(cx, cy) {
         showShop = false; return;
     }
 
-    // تبويب الترتيب
-    if (cx >= shopTabBtn1.x && cx <= shopTabBtn1.x + shopTabBtn1.w &&
-        cy >= shopTabBtn1.y && cy <= shopTabBtn1.y + shopTabBtn1.h) {
-        shopLeaderboardTab = 'session'; return;
-    }
-    if (cx >= shopTabBtn2.x && cx <= shopTabBtn2.x + shopTabBtn2.w &&
-        cy >= shopTabBtn2.y && cy <= shopTabBtn2.y + shopTabBtn2.h) {
-        shopLeaderboardTab = 'rich'; return;
-    }
 
-    // زر شراء الشخصية الثانية
+    // زر شراء سوادي الشبح
     if (cx >= shopBuyBtn.x && cx <= shopBuyBtn.x + shopBuyBtn.w &&
         cy >= shopBuyBtn.y && cy <= shopBuyBtn.y + shopBuyBtn.h) {
         if (!playerName) { shopMessage = 'سجّل اسمك أولاً!'; shopMessageTimer = 120; return; }
@@ -359,31 +350,31 @@ async function handleShopTouch(cx, cy) {
         return;
     }
 
-    // زر اختيار الشخصية الثانية
+    // زر اختيار سوادي الشبح
     if (cx >= shopSelectBtn.x && cx <= shopSelectBtn.x + shopSelectBtn.w &&
         cy >= shopSelectBtn.y && cy <= shopSelectBtn.y + shopSelectBtn.h) {
         if (ownedChars.includes('char2')) {
             currentChar = currentChar === 'char2' ? 'char1' : 'char2';
             localStorage.setItem('flappy_char', currentChar);
-            shopMessage = currentChar === 'char2' ? '✅ تم اختيار الشخصية الثانية!' : '✅ تم اختيار الشخصية الأولى!';
+            shopMessage = currentChar === 'char2' ? '✅ تم اختيار سوادي الشبح!' : '✅ تم اختيار سوادي السريع!';
             shopMessageTimer = 120;
         }
         return;
     }
 
-    // ✅ ضغط على بطاقة الشخصية الأولى مباشرة
+    // ✅ ضغط على بطاقة سوادي السريع مباشرة
     const c1X = displayWidth / 2 - 300 / 2 + 30;
     const c1Y = displayHeight / 2 - 480 / 2 + 85;
     if (cx >= c1X && cx <= c1X + 240 &&
         cy >= c1Y && cy <= c1Y + 80) {
         currentChar = 'char1';
         localStorage.setItem('flappy_char', currentChar);
-        shopMessage = '✅ تم اختيار الشخصية الأولى!';
+        shopMessage = '✅ تم اختيار سوادي السريع!';
         shopMessageTimer = 120;
         return;
     }
 
-    // ✅ ضغط على بطاقة الشخصية الثانية مباشرة
+    // ✅ ضغط على بطاقة سوادي الشبح مباشرة
     const c2X = displayWidth / 2 - 300 / 2 + 30;
     const c2Y = displayHeight / 2 - 480 / 2 + 185;
     if (cx >= c2X && cx <= c2X + 240 &&
@@ -391,7 +382,7 @@ async function handleShopTouch(cx, cy) {
         if (ownedChars.includes('char2')) {
             currentChar = 'char2';
             localStorage.setItem('flappy_char', currentChar);
-            shopMessage = '✅ تم اختيار الشخصية الثانية!';
+            shopMessage = '✅ تم اختيار سوادي الشبح!';
             shopMessageTimer = 120;
         } else {
             shopMessage = '🔒 اشترِ الشخصية أولاً!';
@@ -415,7 +406,7 @@ function createPipe() {
 }
 
 function collision(pipe) {
-    // الشخصية الثانية في وضع شفاف تعبر الأعمدة
+    // سوادي الشبح في وضع شفاف تعبر الأعمدة
     if (currentChar === 'char2' && char2Phase === 'ghost') return false;
 
     let hb = bird.hitbox;
@@ -552,6 +543,11 @@ function drawBird() {
 }
 
 function updateBoost() {
+    if (currentChar === 'char2') {
+        isBoosting = false;
+        bwProgress = Math.max(0, bwProgress - 0.05);
+        return;
+    }
     if (isHolding && !isBoosting && !gameOver) {
         if (Date.now() - holdStartTime > HOLD_THRESHOLD) {
             isBoosting = true; spawnWave(true); spawnWave(true);
@@ -564,6 +560,7 @@ function updateBoost() {
         if (frame % 8 === 0) spawnWave(true);
     }
 }
+
 
 function drawTrails() {
     trails.forEach(t => {
@@ -766,7 +763,7 @@ function drawShopScreen() {
     ctx.fillStyle = '#f1c40f'; ctx.font = 'bold 14px Arial';
     ctx.fillText(`💰 رصيدك: ${totalMoney.toLocaleString()} د.ع`, displayWidth / 2, boxY + 65);
 
-    // ── الشخصية الأولى ──
+    // ── سوادي السريع ──
     const c1X = boxX + 30, c1Y = boxY + 85;
     const isC1Selected = currentChar === 'char1';
     ctx.fillStyle = isC1Selected ? 'rgba(39,174,96,0.3)' : 'rgba(255,255,255,0.05)';
@@ -779,13 +776,13 @@ function drawShopScreen() {
         ctx.drawImage(char1Image, c1X + 8, c1Y + 8, 64, 64);
 
     ctx.fillStyle = '#fff'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'left';
-    ctx.fillText('الشخصية الأولى', c1X + 82, c1Y + 28);
+    ctx.fillText('سوادي السريع', c1X + 82, c1Y + 28);
     ctx.fillStyle = '#aaa'; ctx.font = '12px Arial';
     ctx.fillText('⚡ إبطاء الزمن', c1X + 82, c1Y + 48);
     ctx.fillStyle = '#27ae60'; ctx.font = 'bold 11px Arial';
     ctx.fillText('✅ مفتوحة', c1X + 82, c1Y + 66);
 
-    // ── الشخصية الثانية ──
+    // ── سوادي الشبح ──
     const c2X = boxX + 30, c2Y = boxY + 185;
     const isOwned2  = ownedChars.includes('char2');
     const isC2Selected = currentChar === 'char2';
@@ -803,7 +800,7 @@ function drawShopScreen() {
     }
 
     ctx.fillStyle = isOwned2 ? '#fff' : '#888'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'left';
-    ctx.fillText('الشخصية الثانية', c2X + 82, c2Y + 28);
+    ctx.fillText('سوادي الشبح', c2X + 82, c2Y + 28);
     ctx.fillStyle = '#aaa'; ctx.font = '12px Arial';
     ctx.fillText('👻 الاختفاء', c2X + 82, c2Y + 48);
     if (!isOwned2) {
@@ -831,33 +828,25 @@ function drawShopScreen() {
         ctx.fillStyle = 'white'; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center';
         ctx.fillText(isC2Selected ? '✅ محددة' : '▶ اختيار', displayWidth / 2, btnY2 + 27);
     }
-
-    // ── تبويب الترتيب ──
-    const tabY = btnY2 + 58;
-    shopTabBtn1.x = boxX + 20; shopTabBtn1.y = tabY; shopTabBtn1.w = 118; shopTabBtn1.h = 34;
-    shopTabBtn2.x = boxX + 150; shopTabBtn2.y = tabY; shopTabBtn2.w = 118; shopTabBtn2.h = 34;
-
-    ctx.fillStyle = shopLeaderboardTab === 'session' ? '#e67e22' : '#333';
-    ctx.beginPath(); ctx.roundRect(shopTabBtn1.x, shopTabBtn1.y, shopTabBtn1.w, shopTabBtn1.h, 8); ctx.fill();
-    ctx.fillStyle = 'white'; ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center';
-    ctx.fillText('🏆 أعلى جلسة', shopTabBtn1.x + shopTabBtn1.w / 2, tabY + 22);
-
-    ctx.fillStyle = shopLeaderboardTab === 'rich' ? '#f1c40f' : '#333';
-    ctx.beginPath(); ctx.roundRect(shopTabBtn2.x, shopTabBtn2.y, shopTabBtn2.w, shopTabBtn2.h, 8); ctx.fill();
-    ctx.fillStyle = shopLeaderboardTab === 'rich' ? '#000' : 'white'; ctx.font = 'bold 11px Arial';
-    ctx.fillText('💰 الأغنياء', shopTabBtn2.x + shopTabBtn2.w / 2, tabY + 22);
-
-    // بيانات الترتيب
-    const lb = shopLeaderboardTab === 'session' ? leaderboard : leaderboardRich;
-    lb.slice(0, 4).forEach((s, i) => {
+    
+    const lbY = btnY2 + 58;
+    ctx.strokeStyle = 'rgba(150,50,255,0.3)'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(boxX + 20, lbY); ctx.lineTo(boxX + boxW - 20, lbY);
+    ctx.stroke();
+    
+    ctx.fillStyle = '#f1c40f'; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('💰 أغنى اللاعبين', displayWidth / 2, lbY + 18);
+    
+    leaderboardRich.slice(0, 4).forEach((s, i) => {
         const isMe = s.name === playerName;
         ctx.fillStyle = isMe ? '#f1c40f' : '#ccc';
         ctx.font = isMe ? 'bold 11px Arial' : '11px Arial';
         ctx.textAlign = 'center';
         const medals = ['🥇','🥈','🥉','4️⃣'];
-        const val = shopLeaderboardTab === 'session' ? s.score : `${(s.money||0).toLocaleString()} د.ع`;
-        ctx.fillText(`${medals[i]} ${s.name} — ${val}`, displayWidth / 2, tabY + 52 + i * 18);
+        ctx.fillText(`${medals[i]} ${s.name} — ${(s.money||0).toLocaleString()} د.ع`, displayWidth / 2, lbY + 36 + i * 18);
     });
+
 
     // رسالة
     if (shopMessageTimer > 0) {
@@ -932,13 +921,15 @@ function update() {
 
     // النقاط والمال
     const sc = bwProgress > 0
-        ? `rgb(${Math.round(255-55*bwProgress)},${Math.round(255-55*bwProgress)},${Math.round(255-55*bwProgress)})`
-        : 'yellow';
+    ? `rgb(${Math.round(255-55*bwProgress)},${Math.round(255-55*bwProgress)},${Math.round(255-55*bwProgress)})`
+    : 'yellow';
     ctx.fillStyle = sc; ctx.shadowBlur = 0;
     ctx.font = '18px Arial';
     ctx.fillText(`النقاط: ${score}`, 10, 22);
-    ctx.fillStyle = '#f1c40f'; ctx.font = 'bold 14px Arial';
+    ctx.fillStyle = bwProgress > 0 ? sc : '#f1c40f';
+    ctx.font = 'bold 14px Arial';
     ctx.fillText(`💰 ${sessionMoney.toLocaleString()} د.ع`, 10, 42);
+
 
     // شريط البوست
     if (isHolding && !isBoosting) {
@@ -950,19 +941,26 @@ function update() {
         ctx.beginPath(); ctx.roundRect(barX, barY, barW * progress, 8, 4); ctx.fill();
     }
 
-    // مؤشر الشخصية الثانية
-    if (currentChar === 'char2') {
-        const phase = char2Phase === 'ghost' ? '👻 شفاف' : '👤 عادي';
-        const remaining = char2Phase === 'ghost'
-            ? Math.ceil((CHAR2_GHOST_TIME - char2Timer) / 60 * 10) / 10
-            : Math.ceil((CHAR2_VISIBLE_TIME - char2Timer) / 60 * 10) / 10;
-        ctx.fillStyle = char2Phase === 'ghost' ? '#b388ff' : '#80cbc4';
-        ctx.font = 'bold 13px Arial';
-        ctx.textAlign = 'right';
-        ctx.fillText(`${phase} ${remaining}s`, displayWidth - 10, 22);
-        ctx.textAlign = 'left';
-    }
+    // مؤشر سوادي الشبح
+    // مؤشر سوادي الشبح — شريط بنفسجي
+    if (currentChar === 'char2' && char2Phase === 'ghost') {
+    const progress = char2Timer / CHAR2_GHOST_TIME;
+    const barW = 60;
+    const barX = bird.x + bird.width / 2 - barW / 2;
+    const barY = bird.y - 18;
+
+    // خلفية الشريط
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath(); ctx.roundRect(barX, barY, barW, 8, 4); ctx.fill();
+
+    // امتلاء بنفسجي
+    ctx.fillStyle = '#b388ff';
+    ctx.shadowColor = '#9c27b0';
+    ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.roundRect(barX, barY, barW * progress, 8, 4); ctx.fill();
+    ctx.shadowBlur = 0;
 }
+
 
 async function triggerGameOver() {
     if (gameOver) return;
