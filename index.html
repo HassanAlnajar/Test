@@ -489,10 +489,11 @@ function spawnChar2Effect(type) {
             vy: Math.sin(angle) * (1.5 + Math.random()),
             alpha: 1,
             radius: 4 + Math.random() * 4,
-            color: type === 'in' ? '150, 50, 255' : '0, 220, 255'
+            color: type === 'in' ? '150, 50, 255' : '180, 50, 255'
         });
     }
 }
+
 
 function drawChar2Effects() {
     char2Effects.forEach(e => {
@@ -767,9 +768,9 @@ function drawShopScreen() {
     // ── سوادي السريع ──
     const c1X = boxX + 30, c1Y = boxY + 85;
     const isC1Selected = currentChar === 'char1';
-    ctx.fillStyle = isC1Selected ? 'rgba(39,174,96,0.3)' : 'rgba(255,255,255,0.05)';
+    ctx.fillStyle = isC1Selected ? 'rgba(0,150,255,0.3)' : 'rgba(255,255,255,0.05)';
     ctx.beginPath(); ctx.roundRect(c1X, c1Y, boxW - 60, 80, 12); ctx.fill();
-    ctx.strokeStyle = isC1Selected ? '#27ae60' : '#444';
+    ctx.strokeStyle = isC1Selected ? '#00cfff' : '#444';
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.roundRect(c1X, c1Y, boxW - 60, 80, 12); ctx.stroke();
 
@@ -971,6 +972,7 @@ async function triggerGameOver() {
     isHolding = false; isBoosting = false;
     trails = []; waves = []; bwProgress = 0;
     leaderboardLoaded = false;
+    if (score > personalBest) personalBest = score;
     if (playerName) {
         await addMoney(playerName, sessionMoney);
         await saveScore(playerName, finalScore);
@@ -978,7 +980,6 @@ async function triggerGameOver() {
         loadLeaderboard();
     }
 }
-    if (score > personalBest) personalBest = score;
 
 function resetGame() {
     bird.y = displayHeight / 2; bird.velocity = 0;
