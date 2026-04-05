@@ -660,9 +660,9 @@ function drawGameOverScreen() {
     ctx.fillText(finalScore, displayWidth / 2, boxY + 152);
 
     ctx.fillStyle = '#27ae60'; ctx.font = 'bold 16px Tajawal';
-    ctx.fillText(`💰 +${sessionMoney.toLocaleString()} د.ع`, displayWidth / 2, boxY + 178);
+    sessionMoney && ctx.fillText(`💰 +${sessionMoney.toLocaleString()} د.ع`, displayWidth / 2, boxY + 178);
     ctx.fillStyle = '#888'; ctx.font = '13px Tajawal';
-    ctx.fillText(`إجمالي: ${totalMoney.toLocaleString()} د.ع`, displayWidth / 2, boxY + 198);
+    ctx.fillText(`فلوسك: ${totalMoney.toLocaleString()} د.ع`, displayWidth / 2, boxY + 198);
 
     // Leaderboard
     if (leaderboard.length > 0) {
