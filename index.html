@@ -359,18 +359,48 @@ async function handleShopTouch(cx, cy) {
         return;
     }
 
-    // زر اختيار شخصية
+    // زر اختيار الشخصية الثانية
     if (cx >= shopSelectBtn.x && cx <= shopSelectBtn.x + shopSelectBtn.w &&
         cy >= shopSelectBtn.y && cy <= shopSelectBtn.y + shopSelectBtn.h) {
         if (ownedChars.includes('char2')) {
             currentChar = currentChar === 'char2' ? 'char1' : 'char2';
             localStorage.setItem('flappy_char', currentChar);
-            shopMessage = currentChar === 'char2' ? 'تم اختيار الشخصية الثانية!' : 'تم اختيار الشخصية الأولى!';
+            shopMessage = currentChar === 'char2' ? '✅ تم اختيار الشخصية الثانية!' : '✅ تم اختيار الشخصية الأولى!';
+            shopMessageTimer = 120;
+        }
+        return;
+    }
+
+    // ✅ ضغط على بطاقة الشخصية الأولى مباشرة
+    const c1X = displayWidth / 2 - 300 / 2 + 30;
+    const c1Y = displayHeight / 2 - 480 / 2 + 85;
+    if (cx >= c1X && cx <= c1X + 240 &&
+        cy >= c1Y && cy <= c1Y + 80) {
+        currentChar = 'char1';
+        localStorage.setItem('flappy_char', currentChar);
+        shopMessage = '✅ تم اختيار الشخصية الأولى!';
+        shopMessageTimer = 120;
+        return;
+    }
+
+    // ✅ ضغط على بطاقة الشخصية الثانية مباشرة
+    const c2X = displayWidth / 2 - 300 / 2 + 30;
+    const c2Y = displayHeight / 2 - 480 / 2 + 185;
+    if (cx >= c2X && cx <= c2X + 240 &&
+        cy >= c2Y && cy <= c2Y + 80) {
+        if (ownedChars.includes('char2')) {
+            currentChar = 'char2';
+            localStorage.setItem('flappy_char', currentChar);
+            shopMessage = '✅ تم اختيار الشخصية الثانية!';
+            shopMessageTimer = 120;
+        } else {
+            shopMessage = '🔒 اشترِ الشخصية أولاً!';
             shopMessageTimer = 120;
         }
         return;
     }
 }
+
 
 // ── Pipes ──
 function createPipe() {
